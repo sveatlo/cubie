@@ -1,0 +1,82 @@
+---
+# ArgoCD Helm values for initial bootstrap install.
+# This is a minimal single-replica setup suitable for a homelab.
+# After bootstrap, ArgoCD manages itself via kubernetes/argocd/values.yaml.
+
+global:
+  # EDIT: set your cluster domain
+  domain: argocd.example.com
+
+configs:
+  params:
+    # TLS terminated at Traefik; ArgoCD listens on plain HTTP internally
+    server.insecure: "true"
+
+  cm:
+    # EDIT: replace with your Git repository URL
+    url: https://argocd.example.com
+    # Allow kustomize to use helm charts
+    kustomize.buildOptions: "--enable-helm"
+    # Resource tracking method - annotation is more reliable than label
+    application.resourceTrackingMethod: annotation
+
+  rbac:
+    policy.default: role:readonly
+
+  repositories: |
+    - url: https://github.com/YOUR_ORG/cubie.git
+      name: cubie
+
+server:
+  replicas: 1
+  # Expose via Traefik Ingress (created after ArgoCD is healthy)
+  ingress:
+    enabled: false  # Enable after Traefik is synced by ArgoCD
+
+repoServer:
+  replicas: 1
+  # helm-secrets plugin for SOPS-encrypted Helm values
+  volumes:
+    - name: custom-tools
+      emptyDir: {}
+    - name: helm-secrets-private-keys
+      secret:
+        secretName: helm-secrets-private-keys
+  initContainers:
+    - name: download-tools
+      image: alpine:latest
+      command: [sh, -c]
+      args:
+        - |
+          wget -qO /custom-tools/helm-secrets \
+            https://github.com/jkroepke/helm-secrets/releases/latest/download/helm-secrets
+          chmod +x /custom-tools/helm-secrets
+      volumeMounts:
+        - mountPath: /custom-tools
+          name: custom-tools
+  extraContainers: []
+  volumeMounts:
+    - mountPath: /custom-tools
+      name: custom-tools
+    - mountPath: /helm-secrets-private-keys
+      name: helm-secrets-private-keys
+  env:
+    - name: HELM_PLUGINS
+      value: /custom-tools/helm-secrets
+    - name: SOPS_AGE_KEY_FILE
+      value: /helm-secrets-private-keys/key.txt
+
+applicationSet:
+  replicas: 1
+
+notifications:
+  enabled: false
+
+dex:
+  enabled: false
+
+redis:
+  enabled: true
+
+redis-ha:
+  enabled: false

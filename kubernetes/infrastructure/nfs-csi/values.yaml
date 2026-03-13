@@ -1,0 +1,11 @@
+---
+# NFS CSI Driver Helm values
+driver:
+  name: nfs.csi.k8s.io
+
+controller:
+  replicas: 1
+
+# Node plugin runs on all nodes to mount NFS volumes
+node:
+  maxUnavailable: 1

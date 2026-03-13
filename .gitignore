@@ -1,0 +1,27 @@
+# Talos
+talos/secrets.yaml
+talos/configs/
+
+# Kubernetes credentials
+kubeconfig
+*.kubeconfig
+kubeconfig.yaml
+
+# age keys
+keys.txt
+*.agekey
+
+# SOPS decrypted files (never commit plaintext secrets)
+*.sops.decrypted.*
+
+# Editor / OS
+.DS_Store
+*.swp
+*.swo
+*~
+.idea/
+.vscode/
+
+# Temporary
+tmp/
+*.tmp

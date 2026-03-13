@@ -1,0 +1,17 @@
+---
+# MetalLB Helm values — Layer 2 mode, no BGP/FRR required for homelab.
+controller:
+  enabled: true
+  logLevel: info
+
+speaker:
+  enabled: true
+  logLevel: info
+  # frr-mode disabled — use native L2 ARP/NDP only
+  frr:
+    enabled: false
+
+# CRDs are included in the chart
+crds:
+  enabled: true
+  validationFailurePolicy: Fail

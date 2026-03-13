@@ -1,0 +1,5 @@
+---
+# Sets the cluster name shown in kubeconfig and talosctl contexts.
+# EDIT: replace "cubie" with your cluster name if different.
+cluster:
+  name: cubie

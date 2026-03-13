@@ -1,0 +1,22 @@
+---
+# NFS StorageClass — used by PersistentVolumeClaims across the cluster.
+# EDIT: set server and share to match your NFS server.
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: nfs
+  annotations:
+    storageclass.kubernetes.io/is-default-class: "true"
+provisioner: nfs.csi.k8s.io
+parameters:
+  server: 192.168.1.10      # EDIT: your NFS server IP
+  share: /mnt/tank/k8s      # EDIT: your NFS export path
+  # Optional: mount options
+  mountPermissions: "0777"
+reclaimPolicy: Retain        # Retain PV data when PVC is deleted
+volumeBindingMode: Immediate
+allowVolumeExpansion: true
+mountOptions:
+  - nfsvers=4.1
+  - hard
+  - nointr

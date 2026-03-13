@@ -1,0 +1,20 @@
+---
+# cert-manager Certificate — wildcard for your cluster domain.
+# EDIT: replace example.com with your actual domain.
+# Uses letsencrypt-staging initially; switch issuerRef.name to letsencrypt-prod
+# once staging validation passes.
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: wildcard-cert
+  namespace: traefik
+spec:
+  secretName: wildcard-tls
+  issuerRef:
+    name: letsencrypt-staging   # EDIT: switch to letsencrypt-prod after testing
+    kind: ClusterIssuer
+  dnsNames:
+    - "example.com"             # EDIT: your domain
+    - "*.example.com"           # EDIT: your wildcard domain
+  duration: 2160h   # 90 days
+  renewBefore: 360h # renew 15 days before expiry

@@ -1,0 +1,12 @@
+---
+# MetalLB IP address pool for LoadBalancer services.
+# EDIT: set addresses to an unused range on your LAN (outside DHCP scope).
+apiVersion: metallb.io/v1beta1
+kind: IPAddressPool
+metadata:
+  name: lan-pool
+  namespace: metallb-system
+spec:
+  addresses:
+    - 192.168.1.100-192.168.1.120   # EDIT: your desired LB IP range
+  autoAssign: true

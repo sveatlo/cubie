@@ -1,0 +1,12 @@
+---
+# Kustomization for ArgoCD self-management.
+# The Application in application.yaml uses a multi-source approach:
+#   source 1 — the ArgoCD Helm chart
+#   source 2 — this repo (for values.yaml)
+# This kustomization is a no-op wrapper used if ArgoCD discovers this directory
+# via the ApplicationSet (it won't — argocd/ is excluded from the directory generator).
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - application.yaml

@@ -1,0 +1,66 @@
+---
+# Root ApplicationSet — auto-discovers all infrastructure and app directories.
+# Apply this once after ArgoCD is installed:
+#   kubectl apply -f kubernetes/apps/applicationset.yaml
+#
+# It watches two path patterns:
+#   kubernetes/infrastructure/*  — platform components (wave-ordered)
+#   kubernetes/apps/*            — workloads
+#
+# Each discovered directory must contain a kustomization.yaml.
+# ArgoCD creates one Application per directory.
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: cluster-apps
+  namespace: argocd
+spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
+  generators:
+    - matrix:
+        generators:
+          # Generator 1: which path patterns to scan
+          - list:
+              elements:
+                - path: kubernetes/infrastructure
+                  wave: "0"
+                - path: kubernetes/apps
+                  wave: "3"
+          # Generator 2: find all directories under each path
+          - git:
+              repoURL: &repoURL https://github.com/YOUR_ORG/cubie.git  # EDIT
+              revision: &revision HEAD
+              directories:
+                - path: "{{ .path }}/*"
+  template:
+    metadata:
+      # App name derived from directory name (e.g. "metallb", "cert-manager")
+      name: "{{ .path.basename }}"
+      namespace: argocd
+      annotations:
+        # Per-component wave is set in each application.yaml; default to matrix wave
+        argocd.argoproj.io/sync-wave: "{{ .wave }}"
+    spec:
+      project: default
+      source:
+        repoURL: *repoURL
+        targetRevision: *revision
+        path: "{{ .path.path }}"
+      destination:
+        server: https://kubernetes.default.svc
+        # Each component's kustomization.yaml sets its own namespace
+        namespace: "{{ .path.basename }}"
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
+        syncOptions:
+          - CreateNamespace=true
+          - ServerSideApply=true
+        retry:
+          limit: 5
+          backoff:
+            duration: 5s
+            factor: 2
+            maxDuration: 3m

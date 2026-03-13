@@ -1,0 +1,45 @@
+---
+# ArgoCD self-management Application.
+# Apply once after bootstrap to hand ArgoCD control of itself:
+#   kubectl apply -f kubernetes/argocd/application.yaml
+#
+# After this, changes to kubernetes/argocd/values.yaml are auto-applied by ArgoCD.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: argocd
+  namespace: argocd
+  annotations:
+    # sync-wave "-1" — ArgoCD must be healthy before infrastructure apps sync
+    argocd.argoproj.io/sync-wave: "-1"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://argoproj.github.io/argo-helm
+    chart: argo-cd
+    targetRevision: "7.3.11"   # EDIT: pin to same version as bootstrap/argocd/install.sh
+    helm:
+      valueFiles:
+        - $values/kubernetes/argocd/values.yaml
+  sources:
+    - repoURL: https://argoproj.github.io/argo-helm
+      chart: argo-cd
+      targetRevision: "7.3.11"
+      helm:
+        valueFiles:
+          - $values/kubernetes/argocd/values.yaml
+    - repoURL: https://github.com/YOUR_ORG/cubie.git  # EDIT
+      targetRevision: HEAD
+      ref: values
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true

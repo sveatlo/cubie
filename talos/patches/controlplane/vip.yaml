@@ -1,0 +1,10 @@
+---
+# Talos built-in Virtual IP for highly-available API endpoint.
+# All control-plane nodes share this IP via ARP; Talos manages failover automatically.
+# EDIT: set ip to an address outside your DHCP range, on the same subnet as the nodes.
+machine:
+  network:
+    interfaces:
+      - interface: eth0
+        vip:
+          ip: 192.168.1.50

@@ -1,0 +1,11 @@
+---
+# Traefik TLSStore — sets the default TLS certificate to the wildcard cert.
+# Any IngressRoute or Ingress that doesn't specify a cert will use this.
+apiVersion: traefik.io/v1alpha1
+kind: TLSStore
+metadata:
+  name: default
+  namespace: traefik
+spec:
+  defaultCertificate:
+    secretName: wildcard-tls

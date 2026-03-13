@@ -1,0 +1,18 @@
+---
+# Per-node patch for control-plane node cp-01.
+# EDIT: set hostname, IP address, and install disk to match your hardware.
+machine:
+  network:
+    hostname: cp-01
+    interfaces:
+      - interface: eth0
+        addresses:
+          - 192.168.1.51/24
+        routes:
+          - network: 0.0.0.0/0
+            gateway: 192.168.1.1
+        dhcp: false
+  install:
+    disk: /dev/sda
+    # image: ghcr.io/siderolabs/installer:<talos-version>  # pin version in production
+    wipe: false

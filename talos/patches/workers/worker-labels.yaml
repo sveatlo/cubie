@@ -1,0 +1,6 @@
+---
+# Node labels applied to all worker nodes.
+# Kubernetes uses these for scheduling constraints and node selectors.
+machine:
+  nodeLabels:
+    node-role.kubernetes.io/worker: ""

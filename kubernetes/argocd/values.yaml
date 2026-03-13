@@ -1,0 +1,80 @@
+---
+# ArgoCD Helm values for self-managed state.
+# Keep in sync with bootstrap/argocd/values.yaml.
+# Changes here are auto-applied by ArgoCD once self-management is active.
+
+global:
+  domain: argocd.example.com  # EDIT: your domain
+
+configs:
+  params:
+    server.insecure: "true"  # TLS terminated at Traefik
+
+  cm:
+    url: https://argocd.example.com  # EDIT
+    kustomize.buildOptions: "--enable-helm"
+    application.resourceTrackingMethod: annotation
+
+  rbac:
+    policy.default: role:readonly
+
+  repositories: |
+    - url: https://github.com/YOUR_ORG/cubie.git
+      name: cubie
+
+server:
+  replicas: 1
+  ingress:
+    enabled: true
+    ingressClassName: traefik
+    hostname: argocd.example.com  # EDIT
+    annotations:
+      traefik.ingress.kubernetes.io/router.entrypoints: websecure
+      traefik.ingress.kubernetes.io/router.tls: "true"
+    tls: true
+
+repoServer:
+  replicas: 1
+  volumes:
+    - name: custom-tools
+      emptyDir: {}
+    - name: helm-secrets-private-keys
+      secret:
+        secretName: helm-secrets-private-keys
+  initContainers:
+    - name: download-tools
+      image: alpine:latest
+      command: [sh, -c]
+      args:
+        - |
+          wget -qO /custom-tools/helm-secrets \
+            https://github.com/jkroepke/helm-secrets/releases/latest/download/helm-secrets
+          chmod +x /custom-tools/helm-secrets
+      volumeMounts:
+        - mountPath: /custom-tools
+          name: custom-tools
+  volumeMounts:
+    - mountPath: /custom-tools
+      name: custom-tools
+    - mountPath: /helm-secrets-private-keys
+      name: helm-secrets-private-keys
+  env:
+    - name: HELM_PLUGINS
+      value: /custom-tools/helm-secrets
+    - name: SOPS_AGE_KEY_FILE
+      value: /helm-secrets-private-keys/key.txt
+
+applicationSet:
+  replicas: 1
+
+notifications:
+  enabled: false
+
+dex:
+  enabled: false
+
+redis:
+  enabled: true
+
+redis-ha:
+  enabled: false

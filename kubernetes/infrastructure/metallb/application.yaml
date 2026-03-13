@@ -1,0 +1,29 @@
+---
+# Standalone ArgoCD Application for MetalLB.
+# Used when NOT using the root ApplicationSet (e.g. manual apply during debugging).
+# sync-wave: "0" — installs before Traefik/cert-manager consumers.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: metallb
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/YOUR_ORG/cubie.git  # EDIT
+    targetRevision: HEAD
+    path: kubernetes/infrastructure/metallb
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: metallb-system
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true

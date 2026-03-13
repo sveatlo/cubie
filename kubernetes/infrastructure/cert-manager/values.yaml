@@ -1,0 +1,20 @@
+---
+# cert-manager Helm values
+installCRDs: true
+
+replicaCount: 1
+
+# Use recursive nameservers for DNS-01 challenge verification.
+# This avoids issues with split-horizon DNS where internal resolvers
+# may not see the propagated TXT records immediately.
+extraArgs:
+  - --dns01-recursive-nameservers-only
+  - --dns01-recursive-nameservers=8.8.8.8:53,1.1.1.1:53
+
+# Enable leader election for HA (harmless with single replica)
+global:
+  leaderElection:
+    namespace: cert-manager
+
+prometheus:
+  enabled: false

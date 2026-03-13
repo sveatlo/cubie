@@ -1,0 +1,11 @@
+---
+creation_rules:
+  # Talos cluster secrets
+  - path_regex: talos/secrets\.yaml\.sops$
+    age: &default_key age1szym4g0t8z0fsmatszkltft9r2puyelusydtw9kpz2sjnusqrcnqyjzdzn
+    encrypted_regex: ^(secret|trustdisk|token|ca|crt|key|id)$
+
+  # Kubernetes Secret data fields only (keeps metadata readable in git diffs)
+  - path_regex: kubernetes/.*\.yaml\.sops$
+    age: *default_key
+    encrypted_regex: ^(data|stringData)$

@@ -1,0 +1,58 @@
+---
+# Traefik Helm values — LoadBalancer Service with MetalLB, HTTP→HTTPS redirect.
+deployment:
+  replicas: 1
+
+service:
+  type: LoadBalancer
+  annotations:
+    # MetalLB annotation: pin to specific IP if desired, or remove to auto-assign.
+    # metallb.universe.tf/loadBalancerIPs: "192.168.1.100"  # EDIT or remove
+
+ports:
+  web:
+    port: 8000
+    expose:
+      default: true
+    exposedPort: 80
+    # Redirect all HTTP to HTTPS
+    redirectTo:
+      port: websecure
+      scheme: https
+  websecure:
+    port: 8443
+    expose:
+      default: true
+    exposedPort: 443
+    tls:
+      enabled: true
+
+ingressRoute:
+  dashboard:
+    enabled: false  # expose via Ingress with auth instead
+
+providers:
+  kubernetesCRD:
+    enabled: true
+    allowCrossNamespace: true
+    allowExternalNameServices: true
+  kubernetesIngress:
+    enabled: true
+    publishedService:
+      enabled: true
+
+# TLS options — require TLS 1.2+
+tlsOptions:
+  default:
+    minVersion: VersionTLS12
+    sniStrict: false
+
+# Access logs
+accessLogs:
+  enabled: true
+
+logs:
+  general:
+    level: INFO
+  access:
+    enabled: true
