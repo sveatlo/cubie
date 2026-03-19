@@ -1,7 +1,6 @@
 ---
 # cert-manager ClusterIssuer — Let's Encrypt STAGING (for testing, not trusted by browsers).
 # Use this first to verify DNS-01 challenge works before switching to prod.
-# EDIT: replace all REPLACE_* placeholders.
 apiVersion: cert-manager.io/v1
 kind: ClusterIssuer
 metadata:
@@ -9,15 +8,15 @@ metadata:
 spec:
   acme:
     server: https://acme-staging-v02.api.letsencrypt.org/directory
-    email: REPLACE_YOUR_EMAIL@example.com   # EDIT
+    email: svatopluk@vunder.io
     privateKeySecretRef:
-      name: letsencrypt-staging-account-key
+      name: letsencrypt-prod-account-key
     solvers:
       - dns01:
           route53:
-            region: us-east-1                  # EDIT: your AWS region
-            hostedZoneID: REPLACE_ZONE_ID      # EDIT: Route53 hosted zone ID
-            accessKeyID: REPLACE_ACCESS_KEY_ID # EDIT: IAM access key ID
+            region: us-east-1
+            # hostedZoneID: REPLACE_ZONE_ID
+            accessKeyID: AKIAQBO2UYKHIJI6ZM74
             secretAccessKeySecretRef:
               name: route53-credentials
               key: secret-access-key

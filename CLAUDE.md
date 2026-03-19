@@ -94,10 +94,9 @@ hack/kubeconfig.sh
 
 | Hostname | Role | IP | Proxmox VM ID | Disk |
 |----------|------|----|---------------|------|
-| cp-01 | control-plane | | | |
-| worker-01 | worker | | | |
+| cp-01 | control-plane + worker | | | |
 
-_Fill in this table as nodes are provisioned._
+_Single-node cluster: cp-01 runs both control-plane and workloads (`allowSchedulingOnControlPlanes: true`). Fill in IP/VM ID/disk when provisioned._
 
 ## Required Tools
 

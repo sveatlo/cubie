@@ -1,0 +1,6 @@
+---
+# Node labels applied to all nodes.
+# worker label lets workloads with nodeSelector find schedulable nodes.
+machine:
+  nodeLabels:
+    node-role.kubernetes.io/worker: ""

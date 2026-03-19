@@ -29,7 +29,7 @@ spec:
                   wave: "3"
           # Generator 2: find all directories under each path
           - git:
-              repoURL: &repoURL https://github.com/YOUR_ORG/cubie.git  # EDIT
+              repoURL: &repoURL https://github.com/sveatlo/cubie.git
               revision: &revision HEAD
               directories:
                 - path: "{{ .path }}/*"

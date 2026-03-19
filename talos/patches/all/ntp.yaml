@@ -1,6 +1,5 @@
 ---
 # NTP time sync configuration.
-# EDIT: replace with your preferred NTP servers (local LAN server recommended).
 machine:
   time:
     disabled: false

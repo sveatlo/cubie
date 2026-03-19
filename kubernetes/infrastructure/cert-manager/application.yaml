@@ -11,7 +11,7 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: https://github.com/YOUR_ORG/cubie.git  # EDIT
+    repoURL: https://github.com/sveatlo/cubie.git
     targetRevision: HEAD
     path: kubernetes/infrastructure/cert-manager
   destination:

@@ -3,6 +3,7 @@
 Complete step-by-step guide to go from bare Proxmox VMs to a fully GitOps-managed cluster.
 
 > **Important rules before you start:**
+>
 > - Never SSH into Talos nodes — all config is applied via `talosctl`
 > - Never commit unencrypted secret files
 > - `talosctl bootstrap` must be run **exactly once**, on the first control-plane node only
@@ -79,11 +80,10 @@ editor talos/nodes/worker-01.yaml
 
 ```bash
 # Generate fresh PKI + bootstrap token
-talosctl gen secrets -o talos/secrets.yaml
+talosctl gen secrets -o talos/secrets.yaml.sops
 
 # Encrypt with SOPS (removes plaintext automatically)
-hack/edit-secret.sh talos/secrets.yaml
-# → creates talos/secrets.yaml.sops, deletes talos/secrets.yaml
+sops --encrypt -i talos/secrets.yaml.sops
 
 # Commit the encrypted secrets
 git add talos/secrets.yaml.sops .sops.yaml
@@ -98,7 +98,13 @@ talos/scripts/gen-configs.sh
 
 # Verify output
 ls talos/configs/
-# controlplane.yaml  cp-01.yaml  worker.yaml  worker-01.yaml
+# controlplane.yaml  cp-01.yaml  talosconfig  worker.yaml
+
+# Set TALOSCONFIG for your shell session (talosconfig is gitignored, regenerate as needed)
+export TALOSCONFIG=talos/configs/talosconfig
+
+# Optional: merge into ~/.talos/config so you don't need to export every session
+talosctl config merge talos/configs/talosconfig
 ```
 
 ### 7. Boot VMs and apply configs
@@ -180,12 +186,12 @@ editor kubernetes/infrastructure/cert-manager/config/clusterissuer-prod.yaml
 
 Fill in your real values in these files before committing:
 
-| File | What to update |
-|------|----------------|
-| `kubernetes/infrastructure/metallb/config/ipaddresspool.yaml` | Your LAN IP range for services |
+| File                                                                 | What to update                     |
+| -------------------------------------------------------------------- | ---------------------------------- |
+| `kubernetes/infrastructure/metallb/config/ipaddresspool.yaml`        | Your LAN IP range for services     |
 | `kubernetes/infrastructure/cert-manager/config/clusterissuer-*.yaml` | Domain, AWS region, hosted zone ID |
-| `kubernetes/infrastructure/traefik/config/wildcard-cert.yaml` | Your domain |
-| `kubernetes/infrastructure/nfs-csi/config/storageclass.yaml` | NFS server IP and share path |
+| `kubernetes/infrastructure/traefik/config/wildcard-cert.yaml`        | Your domain                        |
+| `kubernetes/infrastructure/nfs-csi/config/storageclass.yaml`         | NFS server IP and share path       |
 
 ### 12. Install ArgoCD (bootstrap only)
 
@@ -233,10 +239,10 @@ curl -k https://traefik.<your-domain>
 
 ## Ongoing Operations
 
-| Task | Command |
-|------|---------|
-| Add a new app | Create `kubernetes/apps/<name>/kustomization.yaml`, commit+push |
-| Edit a secret | `hack/edit-secret.sh <file.yaml.sops>` |
-| Add a node | Add `talos/nodes/<hostname>.yaml`, run gen-configs + apply |
-| Upgrade Talos | Update image tag in node patch, run gen-configs + apply |
-| Fetch kubeconfig | `hack/kubeconfig.sh` |
+| Task             | Command                                                         |
+| ---------------- | --------------------------------------------------------------- |
+| Add a new app    | Create `kubernetes/apps/<name>/kustomization.yaml`, commit+push |
+| Edit a secret    | `hack/edit-secret.sh <file.yaml.sops>`                          |
+| Add a node       | Add `talos/nodes/<hostname>.yaml`, run gen-configs + apply      |
+| Upgrade Talos    | Update image tag in node patch, run gen-configs + apply         |
+| Fetch kubeconfig | `hack/kubeconfig.sh`                                            |

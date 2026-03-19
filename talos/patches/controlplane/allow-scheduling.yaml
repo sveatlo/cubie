@@ -1,0 +1,6 @@
+---
+# Allow workloads to be scheduled on control-plane nodes.
+# Required for single-node clusters where the control-plane also runs workloads.
+# Remove this file if you add dedicated worker nodes and want to keep control-plane clean.
+cluster:
+  allowSchedulingOnControlPlanes: true

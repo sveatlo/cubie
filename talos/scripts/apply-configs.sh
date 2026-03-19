@@ -15,53 +15,62 @@ INSECURE_FLAG=""
 TARGET_NODE=""
 
 while [[ $# -gt 0 ]]; do
-  case "$1" in
-    --insecure) INSECURE_FLAG="--insecure"; shift ;;
-    --node) TARGET_NODE="$2"; shift 2 ;;
-    *) echo "Unknown argument: $1" >&2; exit 1 ;;
-  esac
+    case "$1" in
+    --insecure)
+        INSECURE_FLAG="--insecure"
+        shift
+        ;;
+    --node)
+        TARGET_NODE="$2"
+        shift 2
+        ;;
+    *)
+        echo "Unknown argument: $1" >&2
+        exit 1
+        ;;
+    esac
 done
 
 if [[ ! -d "$CONFIGS_DIR" ]]; then
-  echo "Error: $CONFIGS_DIR not found. Run gen-configs.sh first." >&2
-  exit 1
+    echo "Error: $CONFIGS_DIR not found. Run gen-configs.sh first." >&2
+    exit 1
 fi
 
 apply_node() {
-  local node_name="$1"
-  local config_file="$CONFIGS_DIR/$node_name.yaml"
+    local node_name="$1"
+    local config_file="$CONFIGS_DIR/$node_name.yaml"
 
-  if [[ ! -f "$config_file" ]]; then
-    echo "Warning: config not found for $node_name, skipping." >&2
-    return
-  fi
+    if [[ ! -f "$config_file" ]]; then
+        echo "Warning: config not found for $node_name, skipping." >&2
+        return
+    fi
 
-  # Read IP from node patch
-  local node_patch="$NODES_DIR/$node_name.yaml"
-  local ip
-  ip=$(grep -E 'addresses:' -A1 "$node_patch" | grep -oE '[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+' | head -1)
+    # Read IP from node patch
+    local node_patch="$NODES_DIR/$node_name.yaml"
+    local ip
+    ip=$(grep -E 'addresses:' -A1 "$node_patch" | grep -oE '[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+' | head -1)
 
-  if [[ -z "$ip" ]]; then
-    echo "Warning: could not determine IP for $node_name, skipping." >&2
-    return
-  fi
+    if [[ -z "$ip" ]]; then
+        echo "Warning: could not determine IP for $node_name, skipping." >&2
+        return
+    fi
 
-  echo "Applying config to $node_name ($ip) ..."
-  # shellcheck disable=SC2086
-  talosctl apply-config \
-    --nodes "$ip" \
-    --file "$config_file" \
-    $INSECURE_FLAG
-  echo "  Done: $node_name"
+    echo "Applying config to $node_name ($ip) ..."
+    talosctl apply-config \
+        --endpoints "$ip" \
+        --nodes "$ip" \
+        --file "$config_file" \
+        $INSECURE_FLAG
+    echo "  Done: $node_name"
 }
 
 if [[ -n "$TARGET_NODE" ]]; then
-  apply_node "$TARGET_NODE"
+    apply_node "$TARGET_NODE"
 else
-  for NODE_PATCH in "$NODES_DIR/"*.yaml; do
-    NODE=$(basename "$NODE_PATCH" .yaml)
-    apply_node "$NODE"
-  done
+    for NODE_PATCH in "$NODES_DIR/"*.yaml; do
+        NODE=$(basename "$NODE_PATCH" .yaml)
+        apply_node "$NODE"
+    done
 fi
 
 echo "All configs applied."
