@@ -7,7 +7,7 @@ service:
   type: LoadBalancer
   annotations:
     # MetalLB annotation: pin to specific IP if desired, or remove to auto-assign.
-    metallb.universe.tf/loadBalancerIPs: "10.69.11.200"
+    metallb.universe.tf/loadBalancerIPs: "10.69.11.42"
 
 ports:
   web:
