@@ -10,7 +10,7 @@ provisioner: nfs.csi.k8s.io
 parameters:
   server: 10.69.10.3
   share: /mnt/rapida/cubie
-  mountPermissions: "0777"
+  mountPermissions: "0"
 reclaimPolicy: Retain # Retain PV data when PVC is deleted
 volumeBindingMode: Immediate
 allowVolumeExpansion: true
