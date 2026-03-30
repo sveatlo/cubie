@@ -13,7 +13,7 @@ configs:
 
   cm:
     url: https://argocd.mirkwood.casa
-    kustomize.buildOptions: "--enable-helm --enable-alpha-plugins --enable-exec"
+    kustomize.buildOptions: "--enable-helm"
     application.resourceTrackingMethod: annotation
     resource.customizations.ignoreDifferences.apps_DaemonSet: |
       jsonPointers:
@@ -71,10 +71,6 @@ repoServer:
 
     - name: SOPS_AGE_KEY_FILE
       value: /helm-secrets-private-keys/key.txt
-    - name: KUSTOMIZE_PLUGIN_HOME
-      value: /gitops-tools/kustomize-plugins
-    - name: PATH
-      value: /gitops-tools:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
   volumes:
     - name: gitops-tools
       emptyDir: {}
@@ -88,9 +84,6 @@ repoServer:
     - mountPath: /usr/local/sbin/helm
       subPath: helm
       name: gitops-tools
-    - mountPath: /home/argocd/.config/kustomize/plugin
-      name: gitops-tools
-      subPath: kustomize-plugins
     - mountPath: /helm-secrets-private-keys/
       name: helm-secrets-private-keys
   initContainers:
@@ -121,10 +114,6 @@ repoServer:
           value: /gitops-tools/age
         - name: HELM_SECRETS_KUBECTL_PATH
           value: /gitops-tools/kubectl
-        - name: KSOPS_VERSION
-          value: "4.3.3"
-        - name: KUSTOMIZE_PLUGIN_HOME
-          value: /gitops-tools/kustomize-plugins
       args:
         - |
           mkdir -p "${HELM_PLUGINS}"
@@ -147,13 +136,6 @@ repoServer:
             "${HELM_SECRETS_AGE_PATH}"
 
           cp "${HELM_PLUGINS}/helm-secrets/scripts/wrapper/helm.sh" /gitops-tools/helm
-
-          KSOPS_PLUGIN_DIR="${KUSTOMIZE_PLUGIN_HOME}/viaduct.ai/v1/ksops"
-          mkdir -p "${KSOPS_PLUGIN_DIR}"
-          export KSOPS_ARCH=$(uname -m | sed -e 's/aarch64/arm64/')
-          wget -qO- "https://github.com/viaduct-ai/kustomize-sops/releases/download/v${KSOPS_VERSION}/ksops_${KSOPS_VERSION}_Linux_${KSOPS_ARCH}.tar.gz" \
-            | tar -xzf- -C "${KSOPS_PLUGIN_DIR}" ksops
-          chmod +x "${KSOPS_PLUGIN_DIR}/ksops"
       volumeMounts:
         - mountPath: /gitops-tools
           name: gitops-tools

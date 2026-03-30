@@ -14,6 +14,3 @@ helmCharts:
 resources:
   - ./config/clusterissuer-staging.yaml
   - ./config/clusterissuer-prod.yaml
-
-generators:
-  - config/ksops-generator.yaml
