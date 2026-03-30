@@ -12,5 +12,6 @@ helmCharts:
     valuesFile: values.yaml
 
 resources:
+  - namespace.yaml
   - config/ipaddresspool.yaml
   - config/l2advertisement.yaml

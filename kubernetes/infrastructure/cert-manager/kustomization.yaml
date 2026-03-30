@@ -14,4 +14,6 @@ helmCharts:
 resources:
   - ./config/clusterissuer-staging.yaml
   - ./config/clusterissuer-prod.yaml
-  - config/route53-secret.yaml.sops
+
+generators:
+  - config/ksops-generator.yaml
