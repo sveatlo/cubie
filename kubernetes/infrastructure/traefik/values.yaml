@@ -41,12 +41,6 @@ providers:
     publishedService:
       enabled: true
 
-# TLS options — require TLS 1.2+
-tlsOptions:
-  default:
-    minVersion: VersionTLS12
-    sniStrict: false
-
 # Access logs
 accessLogs:
   enabled: true
