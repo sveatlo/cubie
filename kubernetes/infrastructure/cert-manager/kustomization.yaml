@@ -12,6 +12,6 @@ helmCharts:
     valuesFile: values.yaml
 
 resources:
-  - config/clusterissuer-staging.yaml
-  - config/clusterissuer-prod.yaml
+  - ./config/clusterissuer-staging.yaml
+  - ./config/clusterissuer-prod.yaml
   - config/route53-secret.yaml.sops
