@@ -6,6 +6,8 @@ kind: TLSStore
 metadata:
   name: default
   namespace: traefik
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
 spec:
   defaultCertificate:
     secretName: wildcard-tls

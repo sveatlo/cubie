@@ -4,6 +4,8 @@ kind: Certificate
 metadata:
   name: wildcard-cert
   namespace: traefik
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
 spec:
   secretName: wildcard-tls
   issuerRef:

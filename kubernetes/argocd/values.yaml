@@ -15,6 +15,9 @@ configs:
     url: https://argocd.mirkwood.casa
     kustomize.buildOptions: "--enable-helm --enable-alpha-plugins --enable-exec"
     application.resourceTrackingMethod: annotation
+    resource.customizations.ignoreDifferences.apps_DaemonSet: |
+      jsonPointers:
+      - /status/terminatingReplicas
 
   rbac:
     policy.default: role:readonly
@@ -85,6 +88,9 @@ repoServer:
     - mountPath: /usr/local/sbin/helm
       subPath: helm
       name: gitops-tools
+    - mountPath: /home/argocd/.config/kustomize/plugin
+      name: gitops-tools
+      subPath: kustomize-plugins
     - mountPath: /helm-secrets-private-keys/
       name: helm-secrets-private-keys
   initContainers:
