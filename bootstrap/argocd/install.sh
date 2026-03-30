@@ -9,7 +9,7 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
 ARGOCD_NAMESPACE="argocd"
 ARGOCD_HELM_REPO="https://argoproj.github.io/argo-helm"
-ARGOCD_CHART_VERSION="${ARGOCD_CHART_VERSION:-7.3.11}"  # pin for reproducibility
+ARGOCD_CHART_VERSION="${ARGOCD_CHART_VERSION:-9.4.17}"  # pin for reproducibility
 
 echo "=== ArgoCD Bootstrap ==="
 echo "Chart version: $ARGOCD_CHART_VERSION"

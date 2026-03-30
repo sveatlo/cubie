@@ -9,6 +9,7 @@ global:
 configs:
   params:
     server.insecure: "true" # TLS terminated at Traefik
+    applicationsetcontroller.policy: sync
 
   cm:
     url: https://argocd.mirkwood.casa

@@ -19,14 +19,14 @@ spec:
   source:
     repoURL: https://argoproj.github.io/argo-helm
     chart: argo-cd
-    targetRevision: "7.3.11" # TODO: pin to same version as bootstrap/argocd/install.sh
+    targetRevision: "9.4.17"
     helm:
       valueFiles:
         - $values/kubernetes/argocd/values.yaml
   sources:
     - repoURL: https://argoproj.github.io/argo-helm
       chart: argo-cd
-      targetRevision: "7.3.11"
+      targetRevision: "9.4.17"
       helm:
         valueFiles:
           - $values/kubernetes/argocd/values.yaml
