@@ -6,7 +6,7 @@ namespace: traefik
 helmCharts:
   - name: traefik
     repo: https://helm.traefik.io/traefik
-    version: "28.3.0"
+    version: "39.0.7"
     releaseName: traefik
     namespace: traefik
     valuesFile: values.yaml
