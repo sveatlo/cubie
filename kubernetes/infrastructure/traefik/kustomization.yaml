@@ -10,6 +10,7 @@ helmCharts:
     releaseName: traefik
     namespace: traefik
     valuesFile: values.yaml
+    includeCRDs: true
 
 resources:
   - config/wildcard-cert.yaml
