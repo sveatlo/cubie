@@ -63,9 +63,8 @@ repoServer:
     - name: HELM_SECRETS_HELM_PATH
       value: /usr/local/bin/helm
 
-    - name: HELM_SECRETS_LOAD_GPG_KEYS
-      # Multiple keys can be separated by space
-      value: /helm-secrets-private-keys/key.asc
+    - name: SOPS_AGE_KEY_FILE
+      value: /helm-secrets-private-keys/key.txt
   volumes:
     - name: gitops-tools
       emptyDir: {}

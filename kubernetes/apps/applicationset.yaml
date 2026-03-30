@@ -23,16 +23,16 @@ spec:
           # Generator 1: which path patterns to scan
           - list:
               elements:
-                - path: kubernetes/infrastructure
+                - basePath: kubernetes/infrastructure
                   wave: "0"
-                - path: kubernetes/apps
+                - basePath: kubernetes/apps
                   wave: "3"
           # Generator 2: find all directories under each path
           - git:
               repoURL: &repoURL https://github.com/sveatlo/cubie.git
               revision: &revision HEAD
               directories:
-                - path: "{{ .path }}/*"
+                - path: "{{ .basePath }}/*"
   template:
     metadata:
       # App name derived from directory name (e.g. "metallb", "cert-manager")
