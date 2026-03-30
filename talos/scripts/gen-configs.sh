@@ -91,7 +91,7 @@ done
 talosctl gen config "$CLUSTER_NAME" "https://$VIP:6443" \
     --with-secrets "$TMP_SECRETS" \
     --output "$OUTPUT_DIR" \
-    --output-types controlplane,worker,talosconfig \
+    --output-types controlplane,worker \
     --force \
     "${COMMON_PATCHES[@]}" \
     "${CP_PATCHES[@]}" \

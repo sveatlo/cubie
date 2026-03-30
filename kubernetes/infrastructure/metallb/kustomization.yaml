@@ -10,6 +10,7 @@ helmCharts:
     releaseName: metallb
     namespace: metallb-system
     valuesFile: values.yaml
+    includeCRDs: true
 
 resources:
   - namespace.yaml
