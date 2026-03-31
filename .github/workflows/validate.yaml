@@ -1,0 +1,45 @@
+---
+name: validate
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+jobs:
+  discover:
+    name: Discover Helm charts
+    runs-on: ubuntu-latest
+    outputs:
+      charts: ${{ steps.find.outputs.charts }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Find kustomizations with helmCharts
+        id: find
+        run: |
+          charts=$(grep -rl 'helmCharts:' kubernetes/ \
+            | xargs -I{} dirname {} \
+            | sort -u \
+            | jq -R . | jq -sc .)
+          echo "charts=$charts" >> "$GITHUB_OUTPUT"
+
+  helm-schema:
+    name: Helm schema validation
+    needs: discover
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        chart: ${{ fromJson(needs.discover.outputs.charts) }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: azure/setup-helm@v4
+
+      - name: Install kustomize
+        uses: imranismail/setup-kustomize@v2
+
+      - name: Build ${{ matrix.chart }}
+        env:
+          CHART: ${{ matrix.chart }}
+        run: kustomize build --enable-helm "$CHART"
