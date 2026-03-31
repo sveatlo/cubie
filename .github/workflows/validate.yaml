@@ -13,7 +13,7 @@ jobs:
     outputs:
       charts: ${{ steps.find.outputs.charts }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Find kustomizations with helmCharts
         id: find
@@ -32,7 +32,7 @@ jobs:
       matrix:
         chart: ${{ fromJson(needs.discover.outputs.charts) }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - uses: azure/setup-helm@v4
 
