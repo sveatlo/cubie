@@ -1,5 +1,4 @@
 ---
-# Traefik Helm values — LoadBalancer Service with MetalLB, HTTP→HTTPS redirect.
 deployment:
   replicas: 1
 

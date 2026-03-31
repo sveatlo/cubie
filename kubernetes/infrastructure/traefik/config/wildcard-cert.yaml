@@ -9,7 +9,7 @@ metadata:
 spec:
   secretName: wildcard-tls
   issuerRef:
-    name: letsencrypt-staging # TODO: switch to letsencrypt-prod after testing
+    name: letsencrypt-prod
     kind: ClusterIssuer
   dnsNames:
     - "mirkwood.casa"
