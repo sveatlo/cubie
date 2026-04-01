@@ -14,16 +14,8 @@ helmCharts:
 
 resources:
   - namespace.yaml
-  - config/traefik-alerts.yaml
 
 configMapGenerator:
-  - name: grafana-dashboard-traefik
-    namespace: monitoring
-    options:
-      labels:
-        grafana_dashboard: "1"
-    files:
-      - dashboards/traefik.json
   - name: grafana-dashboard-cert-manager
     namespace: monitoring
     options:

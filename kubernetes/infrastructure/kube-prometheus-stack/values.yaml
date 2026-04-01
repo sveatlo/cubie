@@ -9,6 +9,7 @@ grafana:
       enabled: true
       label: grafana_dashboard
       labelValue: "1"
+      searchNamespace: ALL
   ingress:
     enabled: true
     ingressClassName: traefik
@@ -36,6 +37,8 @@ prometheus:
   prometheusSpec:
     retention: 30d
     serviceMonitorSelectorNilUsesHelmValues: false
+    ruleSelectorNilUsesHelmValues: false
+    ruleNamespaceSelector: {}
     storageSpec:
       volumeClaimTemplate:
         spec:

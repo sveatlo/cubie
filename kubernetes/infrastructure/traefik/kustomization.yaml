@@ -17,3 +17,13 @@ resources:
   - config/default-tls.yaml
   - config/tls-option.yaml
   - config/middleware-lan-only.yaml
+  - config/traefik-alerts.yaml
+
+configMapGenerator:
+  - name: grafana-dashboard-traefik
+    namespace: traefik
+    options:
+      labels:
+        grafana_dashboard: "1"
+    files:
+      - dashboards/traefik.json
