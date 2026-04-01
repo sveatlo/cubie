@@ -34,3 +34,9 @@ logs:
     level: INFO
   access:
     enabled: true
+
+metrics:
+  prometheus:
+    addEntryPointsLabels: true
+    addServicesLabels: true
+    addRoutersLabels: true

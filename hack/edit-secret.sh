@@ -18,10 +18,9 @@ if [[ "$FILE" == *.sops* ]]; then
   # Edit existing encrypted file
   sops "$FILE"
 else
-  # Encrypt new file
+  # Encrypt new file: rename first so SOPS matches the correct creation rule
   ENCRYPTED="${FILE%.yaml}.yaml.sops"
-  sops --encrypt "$FILE" > "$ENCRYPTED"
+  mv "$FILE" "$ENCRYPTED"
+  sops --encrypt --in-place "$ENCRYPTED"
   echo "Encrypted: $ENCRYPTED"
-  echo "Removing plaintext: $FILE"
-  rm "$FILE"
 fi

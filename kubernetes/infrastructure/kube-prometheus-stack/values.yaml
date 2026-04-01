@@ -1,0 +1,66 @@
+---
+grafana:
+  admin:
+    existingSecret: grafana-admin-secret
+    userKey: admin-user
+    passwordKey: admin-password
+  ingress:
+    enabled: true
+    ingressClassName: traefik
+    annotations:
+      traefik.ingress.kubernetes.io/router.entrypoints: websecure
+      traefik.ingress.kubernetes.io/router.tls: "true"
+    hosts:
+      - grafana.mirkwood.casa
+  persistence:
+    enabled: true
+    storageClassName: nfs
+    size: 10Gi
+
+prometheus:
+  ingress:
+    enabled: true
+    ingressClassName: traefik
+    annotations:
+      traefik.ingress.kubernetes.io/router.entrypoints: websecure
+      traefik.ingress.kubernetes.io/router.tls: "true"
+    hosts:
+      - prometheus.mirkwood.casa
+  prometheusSpec:
+    retention: 30d
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          storageClassName: nfs
+          resources:
+            requests:
+              storage: 50Gi
+    additionalServiceMonitors:
+      - name: traefik
+        selector:
+          matchLabels:
+            app.kubernetes.io/name: traefik
+        namespaceSelector:
+          matchNames:
+            - traefik
+        endpoints:
+          - port: metrics
+            path: /metrics
+
+alertmanager:
+  ingress:
+    enabled: true
+    ingressClassName: traefik
+    annotations:
+      traefik.ingress.kubernetes.io/router.entrypoints: websecure
+      traefik.ingress.kubernetes.io/router.tls: "true"
+    hosts:
+      - alertmanager.mirkwood.casa
+  alertmanagerSpec:
+    storage:
+      volumeClaimTemplate:
+        spec:
+          storageClassName: nfs
+          resources:
+            requests:
+              storage: 5Gi
