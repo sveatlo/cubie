@@ -42,3 +42,22 @@ metrics:
     addEntryPointsLabels: true
     addServicesLabels: true
     addRoutersLabels: true
+
+extraObjects:
+  - apiVersion: v1
+    kind: Service
+    metadata:
+      name: traefik-metrics
+      namespace: traefik
+      labels:
+        app.kubernetes.io/name: traefik
+    spec:
+      selector:
+        app.kubernetes.io/instance: traefik-traefik
+        app.kubernetes.io/name: traefik
+      ports:
+        - name: metrics
+          port: 9100
+          targetPort: metrics
+          protocol: TCP
+      type: ClusterIP
