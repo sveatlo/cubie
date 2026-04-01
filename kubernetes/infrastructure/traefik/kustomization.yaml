@@ -16,3 +16,4 @@ resources:
   - config/wildcard-cert.yaml
   - config/default-tls.yaml
   - config/tls-option.yaml
+  - config/middleware-lan-only.yaml
