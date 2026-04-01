@@ -1,0 +1,27 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: invoice-ninja
+  namespace: external
+spec:
+  type: ExternalName
+  externalName: 10.69.10.4
+  ports:
+    - port: 3000
+---
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: invoice-ninja
+  namespace: external
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - match: Host(`invoices.vunder.io`)
+      kind: Rule
+      services:
+        - name: invoice-ninja
+          port: 3000
+  tls: {}

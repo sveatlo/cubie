@@ -1,0 +1,40 @@
+---
+apiVersion: traefik.io/v1alpha1
+kind: ServersTransport
+metadata:
+  name: nas-insecure
+  namespace: external
+spec:
+  insecureSkipVerify: true
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: nas
+  namespace: external
+spec:
+  type: ExternalName
+  externalName: 10.69.10.3
+  ports:
+    - port: 444
+---
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: nas
+  namespace: external
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - match: Host(`nas.mirkwood.casa`)
+      kind: Rule
+      middlewares:
+        - name: lan-only
+          namespace: traefik
+      services:
+        - name: nas
+          port: 444
+          scheme: https
+          serversTransport: nas-insecure
+  tls: {}
