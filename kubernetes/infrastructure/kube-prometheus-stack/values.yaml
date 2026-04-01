@@ -35,6 +35,7 @@ prometheus:
       - prometheus.mirkwood.casa
   prometheusSpec:
     retention: 30d
+    serviceMonitorSelectorNilUsesHelmValues: false
     storageSpec:
       volumeClaimTemplate:
         spec:
