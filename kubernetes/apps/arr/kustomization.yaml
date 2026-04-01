@@ -1,0 +1,54 @@
+---
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: arr
+
+helmCharts:
+  - name: app-template
+    repo: https://bjw-s-labs.github.io/helm-charts
+    version: "4.6.2"
+    releaseName: radarr
+    namespace: arr
+    valuesFile: radarr-values.yaml
+
+  - name: app-template
+    repo: https://bjw-s-labs.github.io/helm-charts
+    version: "4.6.2"
+    releaseName: sonarr
+    namespace: arr
+    valuesFile: sonarr-values.yaml
+
+  - name: app-template
+    repo: https://bjw-s-labs.github.io/helm-charts
+    version: "4.6.2"
+    releaseName: prowlarr
+    namespace: arr
+    valuesFile: prowlarr-values.yaml
+
+  - name: app-template
+    repo: https://bjw-s-labs.github.io/helm-charts
+    version: "4.6.2"
+    releaseName: lidarr
+    namespace: arr
+    valuesFile: lidarr-values.yaml
+
+  - name: app-template
+    repo: https://bjw-s-labs.github.io/helm-charts
+    version: "4.6.2"
+    releaseName: bazarr
+    namespace: arr
+    valuesFile: bazarr-values.yaml
+
+  - name: app-template
+    repo: https://bjw-s-labs.github.io/helm-charts
+    version: "4.6.2"
+    releaseName: flaresolverr
+    namespace: arr
+    valuesFile: flaresolverr-values.yaml
+
+  - name: app-template
+    repo: https://bjw-s-labs.github.io/helm-charts
+    version: "4.6.2"
+    releaseName: qbittorrent
+    namespace: arr
+    valuesFile: qbittorrent-values.yaml

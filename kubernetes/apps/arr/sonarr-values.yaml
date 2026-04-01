@@ -1,0 +1,49 @@
+---
+controllers:
+  main:
+    containers:
+      main:
+        image:
+          repository: lscr.io/linuxserver/sonarr
+          tag: latest
+        env:
+          TZ: UTC
+          PUID: "1000"
+          PGID: "1000"
+
+service:
+  main:
+    controller: main
+    ports:
+      http:
+        port: 8989
+
+ingress:
+  main:
+    className: traefik
+    annotations:
+      traefik.ingress.kubernetes.io/router.entrypoints: websecure
+      traefik.ingress.kubernetes.io/router.tls: "true"
+      traefik.ingress.kubernetes.io/router.middlewares: traefik-lan-only@kubernetescrd
+    hosts:
+      - host: sonarr.mirkwood.casa
+        paths:
+          - path: /
+            service:
+              identifier: main
+              port: http
+
+persistence:
+  config:
+    type: persistentVolumeClaim
+    storageClass: nfs
+    accessMode: ReadWriteOnce
+    size: 2Gi
+    globalMounts:
+      - path: /config
+  media:
+    type: nfs
+    server: 10.69.10.3
+    path: /mnt/tank/media
+    globalMounts:
+      - path: /media
