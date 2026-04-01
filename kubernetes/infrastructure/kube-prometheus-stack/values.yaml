@@ -57,17 +57,17 @@ prometheus:
           resources:
             requests:
               storage: 50Gi
-    additionalServiceMonitors:
-      - name: traefik
-        selector:
-          matchLabels:
-            app.kubernetes.io/name: traefik
-        namespaceSelector:
-          matchNames:
-            - traefik
-        endpoints:
-          - port: metrics
-            path: /metrics
+  additionalServiceMonitors:
+    - name: traefik
+      selector:
+        matchLabels:
+          app.kubernetes.io/name: traefik
+      namespaceSelector:
+        matchNames:
+          - traefik
+      endpoints:
+        - port: metrics
+          path: /metrics
 
 alertmanager:
   ingress:
