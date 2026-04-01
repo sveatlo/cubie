@@ -1,0 +1,74 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: traefik
+  namespace: monitoring
+  labels:
+    release: kube-prometheus-stack
+spec:
+  groups:
+    - name: traefik
+      rules:
+        - alert: TraefikServiceDown
+          expr: traefik_service_server_up == 0
+          for: 1m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Traefik service {{ $labels.service }} has no healthy backends"
+
+        - alert: TraefikHighErrorRate
+          expr: |
+            sum(rate(traefik_service_requests_total{code=~"5.."}[5m])) by (service)
+            /
+            sum(rate(traefik_service_requests_total[5m])) by (service)
+            > 0.05
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Traefik service {{ $labels.service }} high 5xx error rate"
+            description: "{{ $value | humanizePercentage }} of requests are returning 5xx"
+
+        - alert: TraefikHighClientErrorRate
+          expr: |
+            sum(rate(traefik_service_requests_total{code=~"4.."}[5m])) by (service)
+            /
+            sum(rate(traefik_service_requests_total[5m])) by (service)
+            > 0.10
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Traefik service {{ $labels.service }} high 4xx error rate"
+            description: "{{ $value | humanizePercentage }} of requests are returning 4xx"
+
+        - alert: TraefikHighLatency
+          expr: |
+            histogram_quantile(0.99,
+              sum(rate(traefik_service_request_duration_seconds_bucket[5m])) by (le, service)
+            ) > 2
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Traefik service {{ $labels.service }} p99 latency is high"
+            description: "p99 latency is {{ $value | humanizeDuration }}"
+
+        - alert: TraefikTLSCertExpiringSoon
+          expr: (traefik_tls_certs_not_after - time()) / 86400 < 7
+          for: 1h
+          labels:
+            severity: warning
+          annotations:
+            summary: "TLS certificate expiring in less than 7 days"
+            description: "Certificate {{ $labels.sans }} expires in {{ $value | humanize }} days"
+
+        - alert: TraefikHighTraffic
+          expr: sum(rate(traefik_entrypoint_requests_total[5m])) > 5
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Traefik is receiving unusually high traffic"
+            description: "Request rate is {{ $value | humanize }} req/s across all entrypoints"
