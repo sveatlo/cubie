@@ -1,0 +1,40 @@
+---
+global:
+  env:
+    - name: AUTHENTIK_SECRET_KEY
+      valueFrom:
+        secretKeyRef:
+          name: authentik-secret
+          key: secret-key
+    - name: AUTHENTIK_POSTGRESQL__PASSWORD
+      valueFrom:
+        secretKeyRef:
+          name: authentik-db-app
+          key: password
+
+authentik:
+  postgresql:
+    host: "authentik-db-rw"
+    port: 5432
+    name: "authentik"
+    user: "authentik"
+
+server:
+  ingress:
+    enabled: true
+    ingressClassName: traefik
+    annotations:
+      traefik.ingress.kubernetes.io/router.entrypoints: websecure
+      traefik.ingress.kubernetes.io/router.tls: "true"
+      traefik.ingress.kubernetes.io/router.middlewares: traefik-lan-only@kubernetescrd
+    hosts:
+      - auth.mirkwood.casa
+
+postgresql:
+  enabled: false
+
+redis:
+  enabled: true
+  architecture: standalone
+  auth:
+    enabled: false
