@@ -15,11 +15,3 @@ helmCharts:
 resources:
   - namespace.yaml
 
-configMapGenerator:
-  - name: grafana-dashboard-cert-manager
-    namespace: monitoring
-    options:
-      labels:
-        grafana_dashboard: "1"
-    files:
-      - dashboards/cert-manager.json

@@ -1,0 +1,35 @@
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: cert-manager
+  namespace: cert-manager
+  annotations:
+    argocd.argoproj.io/sync-wave: "3"
+spec:
+  groups:
+    - name: cert-manager
+      rules:
+        - alert: CertManagerCertExpiringSoon
+          expr: |
+            sort_desc(
+              sum(certmanager_certificate_expiration_timestamp_seconds - time()) BY (name, exported_namespace)
+            ) / 86400 < 14
+          for: 1h
+          labels:
+            severity: warning
+          annotations:
+            summary: "Certificate {{ $labels.name }} in namespace {{ $labels.exported_namespace }} is expiring soon"
+            description: "Certificate expires in {{ $value | humanize }} days"
+
+        - alert: CertManagerCertExpiryCritical
+          expr: |
+            sort_desc(
+              sum(certmanager_certificate_expiration_timestamp_seconds - time()) BY (name, exported_namespace)
+            ) / 86400 < 3
+          for: 10m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Certificate {{ $labels.name }} in namespace {{ $labels.exported_namespace }} is about to expire"
+            description: "Certificate expires in {{ $value | humanize }} days"

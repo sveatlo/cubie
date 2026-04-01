@@ -14,3 +14,13 @@ helmCharts:
 resources:
   - ./config/clusterissuer-staging.yaml
   - ./config/clusterissuer-prod.yaml
+  - ./config/cert-manager-alerts.yaml
+
+configMapGenerator:
+  - name: grafana-dashboard-cert-manager
+    namespace: cert-manager
+    options:
+      labels:
+        grafana_dashboard: "1"
+    files:
+      - dashboards/cert-manager.json

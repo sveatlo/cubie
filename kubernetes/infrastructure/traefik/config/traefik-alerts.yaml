@@ -3,6 +3,8 @@ kind: PrometheusRule
 metadata:
   name: traefik
   namespace: traefik
+  annotations:
+    argocd.argoproj.io/sync-wave: "3"
 spec:
   groups:
     - name: traefik
