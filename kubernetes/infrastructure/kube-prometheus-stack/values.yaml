@@ -23,7 +23,7 @@ grafana:
       providers:
         - name: default
           orgId: 1
-          folder: ''
+          folder: ""
           type: file
           disableDeletion: false
           editable: true
@@ -80,6 +80,8 @@ alertmanager:
     hosts:
       - alertmanager.mirkwood.casa
   alertmanagerSpec:
+    secrets:
+      - alertmanager-smtp-password
     storage:
       volumeClaimTemplate:
         spec:
@@ -87,3 +89,21 @@ alertmanager:
           resources:
             requests:
               storage: 5Gi
+
+  tplConfig: true
+  stringConfig: |
+    global:
+      smtp_smarthost: "mail-eu.smtp2go.com:587"
+      smtp_from: "alertmanager@mirkwood.casa"
+      smtp_auth_username: "alertmanager@mirkwood.casa"
+      smtp_auth_password_file: /etc/alertmanager/secrets/alertmanager-smtp-password/smtp-password
+      smtp_require_tls: true
+
+    route:
+      receiver: "default"
+
+    receivers:
+      - name: "default"
+        email_configs:
+          - to: "sysadmin@mirkwood.casa"
+            send_resolved: true
