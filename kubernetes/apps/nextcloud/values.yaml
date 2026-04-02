@@ -1,0 +1,68 @@
+---
+nextcloud:
+  host: cloud.mirkwood.casa
+
+  existingSecret:
+    enabled: true
+    secretName: nextcloud-secret
+    usernameKey: nextcloud-username
+    passwordKey: nextcloud-password
+
+  configs:
+    proxy.config.php: |-
+      <?php
+      $CONFIG = array (
+        'trusted_proxies' => array('10.0.0.0/8'),
+        'overwriteprotocol' => 'https',
+      );
+
+phpClientHttpsFix:
+  enabled: true
+  protocol: https
+
+internalDatabase:
+  enabled: false
+
+mariadb:
+  enabled: false
+
+postgresql:
+  enabled: false
+
+externalDatabase:
+  enabled: true
+  type: postgresql
+  host: nextcloud-db-rw
+  user: nextcloud
+  database: nextcloud
+  existingSecret:
+    enabled: true
+    secretName: nextcloud-db-app
+    usernameKey: username
+    passwordKey: password
+
+redis:
+  enabled: true
+  auth:
+    enabled: false
+
+ingress:
+  enabled: true
+  className: traefik
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    traefik.ingress.kubernetes.io/router.tls: "true"
+  hosts:
+    - host: cloud.mirkwood.casa
+      paths:
+        - path: /
+          pathType: Prefix
+
+persistence:
+  enabled: true
+  storageClass: nfs
+  size: 100Gi
+  accessMode: ReadWriteMany
+
+cronjob:
+  enabled: true
