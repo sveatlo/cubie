@@ -22,6 +22,17 @@ nextcloud:
         'overwriteprotocol' => 'https',
       );
 
+lifecycle:
+  postStartCommand:
+    - /bin/bash
+    - -c
+    - |
+      apt-get update && \
+      apt-get install -y --no-install-recommends procps smbclient libsmbclient-dev && \
+      pecl install smbclient && \
+      docker-php-ext-enable smbclient && \
+      rm -rf /var/lib/apt/lists/*
+
 phpClientHttpsFix:
   enabled: true
   protocol: https
