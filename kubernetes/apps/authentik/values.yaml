@@ -18,6 +18,14 @@ global:
           key: smtp-password
 
 authentik:
+  general:
+    allowUserChangeEmail: true
+    allowUserChangeName: true
+    allowUserChangeUsername: true
+    impersonation: true
+    footerLinks:
+      - href: https://${DOMAIN_0}
+        name: Mirkwood
   postgresql:
     host: "authentik-db-rw"
     port: 5432
