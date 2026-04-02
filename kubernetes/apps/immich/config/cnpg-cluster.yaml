@@ -1,0 +1,43 @@
+---
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: immich-db
+  namespace: immich
+spec:
+  instances: 1
+
+  imageName: ghcr.io/tensorchord/cloudnative-vectorchord:16.9-0.4.3
+
+  postgresql:
+    shared_preload_libraries:
+      - "vchord.so"
+
+  storage:
+    size: 16Gi
+    storageClass: nfs
+
+  bootstrap:
+    initdb:
+      database: immich
+      owner: immich
+      encoding: UTF8
+      localeCType: C
+      localeCollate: C
+      postInitSQL:
+        - CREATE EXTENSION IF NOT EXISTS vchord CASCADE;
+        - CREATE EXTENSION IF NOT EXISTS earthdistance CASCADE;
+
+  # Backup — uncomment when S3-compatible storage is available:
+  # backup:
+  #   barmanObjectStore:
+  #     destinationPath: "s3://backups/cnpg/immich-db"
+  #     endpointURL: "https://s3.example.com"
+  #     s3Credentials:
+  #       accessKeyId:
+  #         name: cnpg-backup-credentials
+  #         key: ACCESS_KEY_ID
+  #       secretAccessKey:
+  #         name: cnpg-backup-credentials
+  #         key: SECRET_ACCESS_KEY
+  #   retentionPolicy: "30d"

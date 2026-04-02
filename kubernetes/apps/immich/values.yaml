@@ -1,0 +1,54 @@
+---
+immich:
+  persistence:
+    library:
+      existingClaim: immich-library
+
+controllers:
+  main:
+    containers:
+      main:
+        env:
+          DB_HOSTNAME: immich-db-rw
+          DB_PORT: "5432"
+          DB_USERNAME: immich
+          DB_DATABASE_NAME: immich
+          DB_PASSWORD:
+            valueFrom:
+              secretKeyRef:
+                name: immich-db-app
+                key: password
+
+valkey:
+  enabled: true
+  persistence:
+    data:
+      enabled: true
+      type: persistentVolumeClaim
+      size: 1Gi
+      accessMode: ReadWriteOnce
+      storageClass: nfs
+
+server:
+  ingress:
+    main:
+      enabled: true
+      className: traefik
+      annotations:
+        traefik.ingress.kubernetes.io/router.entrypoints: websecure
+        traefik.ingress.kubernetes.io/router.tls: "true"
+      hosts:
+        - host: photos.mirkwood.casa
+          paths:
+            - path: /
+              service:
+                identifier: main
+
+machine-learning:
+  persistence:
+    cache:
+      enabled: true
+      type: persistentVolumeClaim
+      size: 10Gi
+      accessMode: ReadWriteOnce
+      storageClass: nfs
