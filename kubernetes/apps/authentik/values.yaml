@@ -11,6 +11,11 @@ global:
         secretKeyRef:
           name: authentik-db-app
           key: password
+    - name: AUTHENTIK_EMAIL__PASSWORD
+      valueFrom:
+        secretKeyRef:
+          name: authentik-secret
+          key: smtp-password
 
 authentik:
   postgresql:
@@ -18,6 +23,14 @@ authentik:
     port: 5432
     name: "authentik"
     user: "authentik"
+  email:
+    host: "mail-eu.smtp2go.com"
+    port: 587
+    username: "auth@mirkwood.casa"
+    use_tls: true
+    use_ssl: false
+    timeout: 30
+    from: "Authentik <auth@mirkwood.casa>"
 
 server:
   ingress:
