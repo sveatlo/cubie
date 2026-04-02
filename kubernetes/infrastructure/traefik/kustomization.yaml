@@ -18,6 +18,7 @@ resources:
   - config/tls-option.yaml
   - config/middleware-lan-only.yaml
   - config/traefik-alerts.yaml
+  - config/dashboard-ingress.yaml
 
 configMapGenerator:
   - name: grafana-dashboard-traefik
