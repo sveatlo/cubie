@@ -1,0 +1,95 @@
+---
+nextcloud:
+  host: cloud.mirkwood.casa
+
+  existingSecret:
+    enabled: true
+    secretName: nextcloud-secret
+    usernameKey: nextcloud-username
+    passwordKey: nextcloud-password
+    smtpUsernameKey: smtp-username
+    smtpPasswordKey: smtp-password
+    smtpHostKey: smtp-host
+
+  trustedDomains:
+    - cloud.mirkwood.casa
+
+  configs:
+    proxy.config.php: |-
+      <?php
+      $CONFIG = array (
+        'trusted_proxies' => array('10.0.0.0/8'),
+        'overwriteprotocol' => 'https',
+      );
+
+phpClientHttpsFix:
+  enabled: true
+  protocol: https
+
+internalDatabase:
+  enabled: false
+
+mariadb:
+  enabled: false
+
+postgresql:
+  enabled: false
+
+externalDatabase:
+  enabled: true
+  type: postgresql
+  host: nextcloud-db-rw
+  user: nextcloud
+  database: nextcloud
+  existingSecret:
+    enabled: true
+    secretName: nextcloud-db-app
+    usernameKey: username
+    passwordKey: password
+
+redis:
+  enabled: true
+  auth:
+    enabled: false
+
+ingress:
+  enabled: true
+  className: traefik
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    traefik.ingress.kubernetes.io/router.tls: "true"
+  hosts:
+    - host: cloud.mirkwood.casa
+      paths:
+        - path: /
+          pathType: Prefix
+
+persistence:
+  enabled: true
+  storageClass: nfs
+  size: 100Gi
+  accessMode: ReadWriteMany
+
+livenessProbe:
+  initialDelaySeconds: 600
+  periodSeconds: 300
+  timeoutSeconds: 5
+  failureThreshold: 5
+  successThreshold: 1
+
+readinessProbe:
+  initialDelaySeconds: 600
+  periodSeconds: 300
+  timeoutSeconds: 5
+  failureThreshold: 5
+  successThreshold: 1
+
+startupProbe:
+  initialDelaySeconds: 600
+  periodSeconds: 300
+  timeoutSeconds: 5
+  failureThreshold: 5
+  successThreshold: 1
+
+cronjob:
+  enabled: true
