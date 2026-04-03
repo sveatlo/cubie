@@ -27,11 +27,12 @@ lifecycle:
     - /bin/bash
     - -c
     - |
-      apt-get update && \
-      apt-get install -y --no-install-recommends procps smbclient libsmbclient-dev && \
-      pecl install smbclient && \
-      docker-php-ext-enable smbclient && \
-      rm -rf /var/lib/apt/lists/*
+      set -e
+
+      apt-get update
+      apt-get install -y libsmbclient-dev gcc make autoconf libc-dev pkg-config
+      pecl install smbclient
+      docker-php-ext-enable smbclient
 
 phpClientHttpsFix:
   enabled: true
@@ -104,40 +105,3 @@ startupProbe:
 
 cronjob:
   enabled: true
-
-extraVolumes:
-  - name: php-smb
-    emptyDir: {}
-
-extraVolumeMounts:
-  - name: php-smb
-    mountPath: /opt/custom-php
-
-extraInitContainers:
-  - name: install-smbclient
-    image: nextcloud:apache
-    command:
-      - /bin/bash
-      - -c
-      - |
-        set -e
-
-        apt-get update
-        apt-get install -y \
-          libsmbclient-dev \
-          smbclient \
-          gcc \
-          make \
-          autoconf \
-          libc-dev \
-          pkg-config
-
-        pecl install smbclient
-
-        mkdir -p /opt/custom-php/modules
-        cp $(php -r "echo ini_get('extension_dir');")/smbclient.so /opt/custom-php/modules/
-
-        echo "extension=smbclient.so" > /opt/custom-php/smbclient.ini
-    volumeMounts:
-      - name: php-smb
-        mountPath: /opt/custom-php
