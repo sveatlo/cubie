@@ -27,6 +27,7 @@ spec:
       postInitSQL:
         - CREATE EXTENSION IF NOT EXISTS vchord CASCADE;
         - CREATE EXTENSION IF NOT EXISTS earthdistance CASCADE;
+        - ALTER USER immich WITH SUPERUSER;
 
   # Backup — uncomment when S3-compatible storage is available:
   # backup:
