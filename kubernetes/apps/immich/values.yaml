@@ -18,6 +18,15 @@ controllers:
               secretKeyRef:
                 name: immich-db-app
                 key: password
+          IMMICH_CONFIG_FILE: /config/config.json
+
+persistence:
+  immich-config:
+    type: secret
+    name: immich-config
+    globalMounts:
+      - path: /config
+        readOnly: true
 
 valkey:
   enabled: true
