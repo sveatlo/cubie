@@ -1,0 +1,95 @@
+---
+controllers:
+  paperless:
+    containers:
+      app:
+        image:
+          repository: ghcr.io/paperless-ngx/paperless-ngx
+          tag: "2.14.7"
+          pullPolicy: IfNotPresent
+        env:
+          PAPERLESS_DBENGINE: postgresql
+          PAPERLESS_DBHOST: paperless-db-rw
+          PAPERLESS_DBPORT: "5432"
+          PAPERLESS_DBNAME: paperless
+          PAPERLESS_DBUSER: paperless
+          PAPERLESS_DBPASS:
+            valueFrom:
+              secretKeyRef:
+                name: paperless-db-app
+                key: password
+          PAPERLESS_REDIS: redis://paperless-redis:6379
+        envFrom:
+          - secretRef:
+              name: paperless-secret
+
+  redis:
+    containers:
+      app:
+        image:
+          repository: docker.io/library/redis
+          tag: "7-alpine"
+          pullPolicy: IfNotPresent
+
+service:
+  paperless:
+    controller: paperless
+    ports:
+      http:
+        port: 8000
+  redis:
+    controller: redis
+    ports:
+      redis:
+        port: 6379
+
+ingress:
+  paperless:
+    enabled: true
+    className: traefik
+    annotations:
+      traefik.ingress.kubernetes.io/router.entrypoints: websecure
+      traefik.ingress.kubernetes.io/router.tls: "true"
+    hosts:
+      - host: archive.mirkwood.casa
+        paths:
+          - path: /
+            pathType: Prefix
+
+persistence:
+  data:
+    enabled: true
+    storageClass: nfs
+    accessMode: ReadWriteOnce
+    size: 5Gi
+    advancedMounts:
+      paperless:
+        app:
+          - path: /usr/src/paperless/data
+  media:
+    enabled: true
+    storageClass: nfs
+    accessMode: ReadWriteOnce
+    size: 50Gi
+    advancedMounts:
+      paperless:
+        app:
+          - path: /usr/src/paperless/media
+  export:
+    enabled: true
+    storageClass: nfs
+    accessMode: ReadWriteOnce
+    size: 10Gi
+    advancedMounts:
+      paperless:
+        app:
+          - path: /usr/src/paperless/export
+  consume:
+    enabled: true
+    storageClass: nfs
+    accessMode: ReadWriteOnce
+    size: 5Gi
+    advancedMounts:
+      paperless:
+        app:
+          - path: /usr/src/paperless/consume

@@ -1,0 +1,14 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: paperless
+
+helmCharts:
+  - name: app-template
+    repo: https://bjw-s-labs.github.io/helm-charts
+    version: "4.6.2"
+    releaseName: paperless
+    namespace: paperless
+    valuesFile: values.yaml
+
+resources:
+  - config/cnpg-cluster.yaml

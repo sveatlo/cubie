@@ -1,0 +1,25 @@
+---
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: paperless-db
+  namespace: paperless
+spec:
+  instances: 1
+
+  postgresql:
+    parameters:
+      shared_buffers: "256MB"
+      effective_cache_size: "512MB"
+
+  storage:
+    size: 5Gi
+    storageClass: nfs
+
+  bootstrap:
+    initdb:
+      database: paperless
+      owner: paperless
+      encoding: UTF8
+      localeCType: C
+      localeCollate: C
