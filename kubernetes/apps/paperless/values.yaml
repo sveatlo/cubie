@@ -28,7 +28,7 @@ controllers:
       app:
         image:
           repository: docker.io/library/redis
-          tag: "7-alpine"
+          tag: "8-alpine"
           pullPolicy: IfNotPresent
 
 service:
