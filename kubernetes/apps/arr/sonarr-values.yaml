@@ -5,7 +5,7 @@ controllers:
       main:
         image:
           repository: lscr.io/linuxserver/sonarr
-          tag: latest
+          tag: 4.0.17
         env:
           TZ: UTC
           PUID: "1000"
