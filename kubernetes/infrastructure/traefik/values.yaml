@@ -37,6 +37,10 @@ ports:
         - 172.16.0.0/16
         - 172.17.0.0/16
 
+additionalArguments:
+  - "--entryPoints.web.http.middlewares=traefik-crowdsec-bouncer@kubernetescrd"
+  - "--entryPoints.websecure.http.middlewares=traefik-crowdsec-bouncer@kubernetescrd"
+
 ingressRoute:
   dashboard:
     enabled: false
@@ -58,6 +62,17 @@ metrics:
     addEntryPointsLabels: true
     addServicesLabels: true
     addRoutersLabels: true
+
+experimental:
+  plugins:
+    crowdsec-bouncer:
+      moduleName: github.com/maxlerebourg/crowdsec-bouncer-traefik-plugin
+      version: v1.4.2
+
+volumes:
+  - name: crowdsec-bouncer-secret
+    mountPath: /etc/crowdsec-bouncer
+    type: secret
 
 extraObjects:
   - apiVersion: v1

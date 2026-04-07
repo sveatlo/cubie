@@ -17,6 +17,7 @@ resources:
   - config/default-tls.yaml
   - config/tls-option.yaml
   - config/middleware-lan-only.yaml
+  - config/middleware-crowdsec.yaml
   - config/traefik-alerts.yaml
   - config/dashboard-ingress.yaml
 

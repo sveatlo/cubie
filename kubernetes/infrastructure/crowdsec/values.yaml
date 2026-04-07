@@ -1,0 +1,31 @@
+---
+container_runtime: containerd
+
+# CrowdSec LAPI + agent — single node, reads Traefik pod logs
+
+lapi:
+  env:
+    # Pre-register the Traefik bouncer with the API key from the secret.
+    # CrowdSec reads BOUNCER_KEY_<name> env vars at startup and creates the bouncer.
+    - name: BOUNCER_KEY_traefik
+      valueFrom:
+        secretKeyRef:
+          name: crowdsec-bouncer-secret
+          key: api-key
+  persistentVolume:
+    config:
+      enabled: true
+      storageClassName: nfs
+      size: 1Gi
+
+agent:
+  env:
+    - name: COLLECTIONS
+      value: "crowdsecurity/traefik crowdsecurity/http-cve"
+  acquisition:
+    - namespace: traefik
+      podName: traefik-*
+      program: traefik
+  persistentVolume:
+    config:
+      enabled: false
