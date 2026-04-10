@@ -1,0 +1,62 @@
+---
+controllers:
+  babybuddy:
+    containers:
+      app:
+        image:
+          repository: lscr.io/linuxserver/babybuddy
+          tag: "2.7.0"
+          pullPolicy: IfNotPresent
+        env:
+          DB_ENGINE: django.db.backends.postgresql
+          DB_NAME: babybuddy
+          DB_USER: babybuddy
+          DB_HOST: babybuddy-db-rw
+          DB_PORT: "5432"
+          DB_PASSWORD:
+            valueFrom:
+              secretKeyRef:
+                name: babybuddy-db-app
+                key: password
+          ALLOWED_HOSTS: babybuddy.mirkwood.casa
+          CSRF_TRUSTED_ORIGINS: https://babybuddy.mirkwood.casa
+          SECRET_KEY:
+            valueFrom:
+              secretKeyRef:
+                name: babybuddy-secret
+                key: secret-key
+
+service:
+  babybuddy:
+    controller: babybuddy
+    ports:
+      http:
+        port: 8000
+
+ingress:
+  babybuddy:
+    enabled: true
+    className: traefik
+    annotations:
+      traefik.ingress.kubernetes.io/router.entrypoints: websecure
+      traefik.ingress.kubernetes.io/router.tls: "true"
+      traefik.ingress.kubernetes.io/router.middlewares: traefik-lan-only@kubernetescrd
+    hosts:
+      - host: babybuddy.mirkwood.casa
+        paths:
+          - path: /
+            pathType: Prefix
+            service:
+              identifier: babybuddy
+              port: http
+
+persistence:
+  data:
+    enabled: true
+    storageClass: nfs
+    accessMode: ReadWriteOnce
+    size: 5Gi
+    advancedMounts:
+      babybuddy:
+        app:
+          - path: /config
