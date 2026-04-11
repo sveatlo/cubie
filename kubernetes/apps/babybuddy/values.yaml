@@ -5,7 +5,7 @@ controllers:
       app:
         image:
           repository: lscr.io/linuxserver/babybuddy
-          tag: "2.7.0"
+          tag: "2.8.0"
           pullPolicy: IfNotPresent
         env:
           DB_ENGINE: django.db.backends.postgresql
