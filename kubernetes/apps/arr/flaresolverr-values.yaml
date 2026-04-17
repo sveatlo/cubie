@@ -5,7 +5,7 @@ controllers:
       main:
         image:
           repository: ghcr.io/flaresolverr/flaresolverr
-          tag: latest
+          tag: v3.4.6
         env:
           TZ: UTC
           LOG_LEVEL: info

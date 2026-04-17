@@ -5,7 +5,7 @@ controllers:
       main:
         image:
           repository: lscr.io/linuxserver/lidarr
-          tag: latest
+          tag: 3.1.0
         env:
           TZ: UTC
           PUID: "1000"
