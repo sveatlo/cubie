@@ -1,0 +1,40 @@
+---
+nodeSelector:
+  feature.node.kubernetes.io/gpu.igpu: "true"
+
+ingress:
+  enabled: true
+  className: traefik
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    traefik.ingress.kubernetes.io/router.tls: "true"
+  hosts:
+    - host: jellyfin.mirkwood.casa
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+
+persistence:
+  config:
+    enabled: true
+    storageClassName: nfs
+    size: 5Gi
+  media:
+    enabled: false
+
+extraVolumes:
+  - name: media
+    nfs:
+      server: 10.69.10.3
+      path: /mnt/tank/media
+  - name: dri
+    hostPath:
+      path: /dev/dri
+
+extraVolumeMounts:
+  - name: media
+    mountPath: /media
+    readOnly: true
+  - name: dri
+    mountPath: /dev/dri
