@@ -158,5 +158,6 @@ _Single-node cluster: cp-01 runs both control-plane and workloads (`allowSchedul
 | 1 | Traefik | Depends on MetalLB (IP) + cert-manager (cert) |
 | 2 | NFS CSI | Storage for workloads |
 | 2 | CNPG operator | Database operator CRDs needed by apps |
+| 2 | Node Feature Discovery | Auto-labels nodes with hardware features |
 | 3 | kube-prometheus-stack | Monitoring after infra is ready |
 | 3+ | Apps (authentik, etc.) | Workloads requiring the platform |
