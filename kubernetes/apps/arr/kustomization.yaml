@@ -52,3 +52,10 @@ helmCharts:
     releaseName: qbittorrent
     namespace: arr
     valuesFile: qbittorrent-values.yaml
+
+  - name: app-template
+    repo: https://bjw-s-labs.github.io/helm-charts
+    version: "4.6.2"
+    releaseName: bookshelf
+    namespace: arr
+    valuesFile: bookshelf-values.yaml
