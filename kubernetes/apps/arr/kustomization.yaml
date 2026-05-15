@@ -6,63 +6,63 @@ namespace: arr
 helmCharts:
   - name: app-template
     repo: https://bjw-s-labs.github.io/helm-charts
-    version: "5.0.0"
+    version: "5.0.1"
     releaseName: radarr
     namespace: arr
     valuesFile: radarr-values.yaml
 
   - name: app-template
     repo: https://bjw-s-labs.github.io/helm-charts
-    version: "5.0.0"
+    version: "5.0.1"
     releaseName: sonarr
     namespace: arr
     valuesFile: sonarr-values.yaml
 
   - name: app-template
     repo: https://bjw-s-labs.github.io/helm-charts
-    version: "5.0.0"
+    version: "5.0.1"
     releaseName: prowlarr
     namespace: arr
     valuesFile: prowlarr-values.yaml
 
   - name: app-template
     repo: https://bjw-s-labs.github.io/helm-charts
-    version: "5.0.0"
+    version: "5.0.1"
     releaseName: lidarr
     namespace: arr
     valuesFile: lidarr-values.yaml
 
   - name: app-template
     repo: https://bjw-s-labs.github.io/helm-charts
-    version: "5.0.0"
+    version: "5.0.1"
     releaseName: bazarr
     namespace: arr
     valuesFile: bazarr-values.yaml
 
   - name: app-template
     repo: https://bjw-s-labs.github.io/helm-charts
-    version: "5.0.0"
+    version: "5.0.1"
     releaseName: flaresolverr
     namespace: arr
     valuesFile: flaresolverr-values.yaml
 
   - name: app-template
     repo: https://bjw-s-labs.github.io/helm-charts
-    version: "5.0.0"
+    version: "5.0.1"
     releaseName: qbittorrent
     namespace: arr
     valuesFile: qbittorrent-values.yaml
 
   - name: app-template
     repo: https://bjw-s-labs.github.io/helm-charts
-    version: "5.0.0"
+    version: "5.0.1"
     releaseName: bookshelf
     namespace: arr
     valuesFile: bookshelf-values.yaml
 
   - name: app-template
     repo: https://bjw-s-labs.github.io/helm-charts
-    version: "5.0.0"
+    version: "5.0.1"
     releaseName: livrarr
     namespace: arr
     valuesFile: livrarr-values.yaml
