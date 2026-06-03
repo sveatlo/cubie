@@ -1,0 +1,19 @@
+---
+# LAN-only access to ThunderHub at https://thunderhub.mirkwood.casa
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: thunderhub
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - match: Host(`thunderhub.mirkwood.casa`)
+      kind: Rule
+      middlewares:
+        - name: lan-only
+          namespace: traefik
+      services:
+        - name: thunderhub
+          port: 3000
+  tls: {}
