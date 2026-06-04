@@ -1,0 +1,25 @@
+---
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: n8n-db
+  namespace: ai
+spec:
+  instances: 1
+
+  postgresql:
+    parameters:
+      shared_buffers: "128MB"
+      effective_cache_size: "256MB"
+
+  storage:
+    size: 5Gi
+    storageClass: nfs
+
+  bootstrap:
+    initdb:
+      database: n8n
+      owner: n8n
+      encoding: UTF8
+      localeCType: C
+      localeCollate: C
