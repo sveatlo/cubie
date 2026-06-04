@@ -26,7 +26,7 @@ ingress:
 
 sso:
   enabled: true
-  enableSignup: false
+  enableSignup: true
   mergeAccountsByEmail: true
   oidc:
     enabled: true
@@ -42,3 +42,5 @@ extraEnvVars:
       secretKeyRef:
         name: ai-webui-secret
         key: webui-secret-key
+  - name: ENABLE_LOGIN_FORM
+    value: false
