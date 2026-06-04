@@ -1,0 +1,61 @@
+---
+# n8n configuration — standalone mode with external PostgreSQL (CNPG)
+image:
+  repository: docker.n8n.io/n8nio/n8n
+  tag: "1.110.1"
+
+# Use existing secret for encryption key (auto-generated on first start if empty)
+existingEncryptionKeySecret: n8n-secret
+
+main:
+  # Number of main replicas
+  count: 1
+
+  # Extra env vars — object format, not array
+  extraEnvVars:
+    DB_POSTGRESDB_HOST: n8n-db-rw
+    DB_POSTGRESDB_PORT: "5432"
+    DB_POSTGRESDB_DATABASE: n8n
+    DB_POSTGRESDB_USER: n8n
+    DB_POSTGRESDB_SCHEMA: public
+    DB_POSTGRESDB_PASSWORD:
+      valueFrom:
+        secretKeyRef:
+          name: n8n-db-app
+          key: password
+    N8N_HOST: n8n.mirkwood.casa
+    N8N_PROTOCOL: https
+    N8N_PORT: "5678"
+    WEBHOOK_URL: https://n8n.mirkwood.casa
+    GENERIC_TIMEZONE: Europe/Bratislava
+
+  resources:
+    requests:
+      cpu: "500m"
+      memory: "512Mi"
+    limits:
+      cpu: "2"
+      memory: "2Gi"
+
+  # Persistence for n8n data (config, files, etc.)
+  persistence:
+    enabled: true
+    size: 5Gi
+    storageClass: nfs
+
+# Ingress
+ingress:
+  enabled: true
+  className: traefik
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    traefik.ingress.kubernetes.io/router.tls: "true"
+  hosts:
+    - host: n8n.mirkwood.casa
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - hosts:
+        - n8n.mirkwood.casa
+      secretName: wildcard-tls
