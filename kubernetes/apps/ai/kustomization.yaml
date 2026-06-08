@@ -22,7 +22,7 @@ helmCharts:
 
   - name: n8n
     repo: https://community-charts.github.io/helm-charts
-    version: "1.21.0"
+    version: "1.22.0"
     releaseName: n8n
     namespace: ai
     valuesFile: n8n-values.yaml
