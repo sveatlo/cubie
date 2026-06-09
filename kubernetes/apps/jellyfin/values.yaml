@@ -23,7 +23,7 @@ persistence:
   media:
     enabled: false
 
-extraVolumes:
+volumes:
   - name: media
     nfs:
       server: 10.69.10.3
@@ -32,7 +32,7 @@ extraVolumes:
     hostPath:
       path: /dev/dri
 
-extraVolumeMounts:
+volumeMounts:
   - name: media
     mountPath: /media
     readOnly: true
