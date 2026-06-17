@@ -66,3 +66,10 @@ helmCharts:
     releaseName: livrarr
     namespace: arr
     valuesFile: livrarr-values.yaml
+
+  - name: seerr-chart
+    repo: oci://ghcr.io/seerr-team/seerr
+    version: "3.6.0"
+    releaseName: seerr
+    namespace: arr
+    valuesFile: seerr-values.yaml
