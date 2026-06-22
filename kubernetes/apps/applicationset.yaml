@@ -51,6 +51,17 @@ spec:
         server: https://kubernetes.default.svc
         # Each component's kustomization.yaml sets its own namespace
         namespace: "{{ .path.basename }}"
+      # PVCs are pre-bound to retained PVs for data recovery; their spec.volumeName
+      # and spec.storageClassName diverge from the chart-rendered (empty) values and
+      # are immutable once bound. Explicit empty group ("") is required — the global
+      # `core_PersistentVolumeClaim` argocd-cm key is NOT honored for core resources.
+      # Paired with RespectIgnoreDifferences=true so ArgoCD skips these fields on apply.
+      ignoreDifferences:
+        - group: ""
+          kind: PersistentVolumeClaim
+          jsonPointers:
+            - /spec/volumeName
+            - /spec/storageClassName
       syncPolicy:
         automated:
           prune: true
