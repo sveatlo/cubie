@@ -9,7 +9,3 @@ creation_rules:
   - path_regex: kubernetes/.*\.yaml\.sops$
     age: *default_key
     encrypted_regex: ^(data|stringData)$
-
-  # Render-time substitution vars (domains) — whole file encrypted
-  - path_regex: vars/domains\.yaml\.sops$
-    age: *default_key

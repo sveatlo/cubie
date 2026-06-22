@@ -25,7 +25,7 @@ ingress:
       traefik.ingress.kubernetes.io/router.tls: "true"
       traefik.ingress.kubernetes.io/router.middlewares: traefik-lan-only@kubernetescrd
     hosts:
-      - host: flaresolverr.${DOMAIN_0}
+      - host: flaresolverr.mirkwood.casa
         paths:
           - path: /
             service:

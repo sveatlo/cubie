@@ -47,7 +47,7 @@ server:
         traefik.ingress.kubernetes.io/router.entrypoints: websecure
         traefik.ingress.kubernetes.io/router.tls: "true"
       hosts:
-        - host: photos.${DOMAIN_0}
+        - host: photos.mirkwood.casa
           paths:
             - path: /
               service:

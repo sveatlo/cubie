@@ -35,39 +35,15 @@ kubectl create secret generic helm-secrets-private-keys \
 
 echo "Created helm-secrets-private-keys secret"
 
-# Load the domain from the encrypted vars file so it never lives plaintext in git.
-export SOPS_AGE_KEY_FILE="$AGE_KEYS_FILE"
-set -a
-eval "$(sops -d "$REPO_ROOT/vars/domains.yaml.sops" \
-  | sed -n -E 's/^([A-Za-z_][A-Za-z0-9_]*):[[:space:]]*(.*)$/\1=\2/p')"
-set +a
-: "${DOMAIN_0:?failed to decrypt DOMAIN_0 from vars/domains.yaml.sops}"
-
-# Guard: refuse to run against an already self-managed ArgoCD. Helm would fight
-# ArgoCD's server-side-apply ownership of its own resources (and selfHeal would
-# revert it). Change a running cluster through Git instead — see bootstrap/README.md.
-# Override only if you understand the consequences: FORCE_BOOTSTRAP=1.
-if [[ "${FORCE_BOOTSTRAP:-0}" != "1" ]] && \
-   kubectl get application argocd -n "$ARGOCD_NAMESPACE" >/dev/null 2>&1; then
-  echo "Error: ArgoCD self-management is active (Application 'argocd' exists)." >&2
-  echo "Re-running the Helm bootstrap conflicts with ArgoCD's ownership of its own" >&2
-  echo "resources. To change a running cluster, commit to Git and let ArgoCD sync." >&2
-  echo "If you really must force a Helm bootstrap, set FORCE_BOOTSTRAP=1." >&2
-  exit 1
-fi
-
 # Add Argo Helm repo
 helm repo add argo "$ARGOCD_HELM_REPO" --force-update
 helm repo update argo
 
-# Install/upgrade ArgoCD. global.domain / configs.cm.url are injected here (not in
-# values.yaml) to keep the domain out of git.
+# Install/upgrade ArgoCD
 helm upgrade --install argocd argo/argo-cd \
   --namespace "$ARGOCD_NAMESPACE" \
   --version "$ARGOCD_CHART_VERSION" \
   --values "$SCRIPT_DIR/values.yaml" \
-  --set "global.domain=argocd.${DOMAIN_0}" \
-  --set "configs.cm.url=https://argocd.${DOMAIN_0}" \
   --wait \
   --timeout 5m
 

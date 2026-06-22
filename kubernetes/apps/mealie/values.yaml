@@ -10,7 +10,7 @@ controllers:
         env:
           TZ: UTC
           DB_ENGINE: postgres
-          BASE_URL: https://recipes.${DOMAIN_0}
+          BASE_URL: https://recipes.mirkwood.casa
           POSTGRES_USER: mealie
           POSTGRES_SERVER: mealie-db-rw
           POSTGRES_PORT: "5432"
@@ -39,7 +39,7 @@ ingress:
       traefik.ingress.kubernetes.io/router.entrypoints: websecure
       traefik.ingress.kubernetes.io/router.tls: "true"
     hosts:
-      - host: recipes.${DOMAIN_0}
+      - host: recipes.mirkwood.casa
         paths:
           - path: /
             pathType: Prefix

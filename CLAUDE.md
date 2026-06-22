@@ -135,27 +135,8 @@ _Single-node cluster: cp-01 runs both control-plane and workloads (`allowSchedul
 - **MetalLB pool:** `10.69.11.1–10.69.11.199` (Layer 2 / ARP)
 - **Traefik LB IP:** `10.69.11.42`
 - **NFS server:** `10.69.10.3`
-- **Wildcard certs:** `*.${DOMAIN_0}`, `*.${DOMAIN_1}` (cert-manager, Route53 DNS-01). The real domains are kept out of git in `vars/domains.yaml.sops` and substituted at render time by the `kustomize-envsubst` ArgoCD CMP — see "Domain templating" below.
+- **Wildcard certs:** `*.mirkwood.casa`, `*.vunder.io` (cert-manager, Route53 DNS-01)
 - **Ingress pattern:** Standard Kubernetes Ingress with `ingressClassName: traefik` and Traefik annotations. LAN-only middleware: `traefik-lan-only@kubernetescrd`.
-
-## Domain Templating (CMP)
-
-This is a **public** repo, so the real domains are never committed. Manifests use the
-placeholders `${DOMAIN_0}` (primary) and `${DOMAIN_1}` (secondary); the real values live
-in the SOPS-encrypted `vars/domains.yaml.sops`.
-
-- **Render path:** the ArgoCD repo-server runs a sidecar Config Management Plugin
-  `kustomize-envsubst` (defined in `kubernetes/argocd/values.yaml` / `bootstrap/argocd/values.yaml`).
-  It runs `kustomize build --enable-helm`, then `sed`-substitutes the placeholders using
-  the age key already mounted in the repo-server. The root ApplicationSet points every app
-  at this plugin (`source.plugin.name: kustomize-envsubst`); ArgoCD self-management is
-  routed through it too via `kubernetes/argocd/kustomization.yaml`.
-- **Edit the domains:** `hack/edit-vars.sh` (wraps SOPS).
-- **Preview locally** exactly as ArgoCD renders: `hack/render.sh <component-dir>`.
-- **Bootstrap** injects `global.domain` via `--set` from the decrypted vars (see
-  `bootstrap/argocd/install.sh`) so the bootstrap values stay domain-free.
-- **Rule:** never commit a real domain. Use `${DOMAIN_0}` / `${DOMAIN_1}` and keep the
-  `sed` allowlist in `hack/render.sh` and the CMP plugin in sync.
 
 ## Required Tools
 

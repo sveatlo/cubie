@@ -26,7 +26,7 @@ ingress:
       traefik.ingress.kubernetes.io/router.tls: "true"
       traefik.ingress.kubernetes.io/router.middlewares: traefik-lan-only@kubernetescrd
     hosts:
-      - host: bazarr.${DOMAIN_0}
+      - host: bazarr.mirkwood.casa
         paths:
           - path: /
             service:

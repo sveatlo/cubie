@@ -9,7 +9,7 @@ namespace, auto-discovered by the root ApplicationSet.
 |------------|-------------|------------------|----------------------------------|
 | bitcoind   | StatefulSet | 30Gi nfs (RWO)   | in-cluster: rpc/zmq/p2p          |
 | lnd        | StatefulSet | 5Gi nfs (RWX)    | in-cluster: grpc/rest/p2p        |
-| thunderhub | Deployment  | reads lnd PVC ro | `thunderhub.${DOMAIN_0}` (LAN) |
+| thunderhub | Deployment  | reads lnd PVC ro | `thunderhub.mirkwood.casa` (LAN) |
 
 `prune=10000` keeps chain data ~10GB. LND runs against the pruned backend and
 back-fills historical blocks from the P2P network.

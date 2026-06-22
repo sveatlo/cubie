@@ -58,23 +58,6 @@ cat ~/.config/sops/age/keys.txt
 sed -i 's/age1REPLACE_WITH_YOUR_AGE_PUBLIC_KEY/age1YOUR_ACTUAL_KEY/' .sops.yaml
 ```
 
-### 3b. Set your domains (kept out of Git)
-
-Manifests reference `${DOMAIN_0}` (primary) and `${DOMAIN_1}` (secondary); the real
-values live encrypted in `vars/domains.yaml.sops` and are substituted at render time
-by the `kustomize-envsubst` ArgoCD CMP (see CLAUDE.md → "Domain Templating").
-
-```bash
-cat > vars/domains.yaml << 'EOF'
-DOMAIN_0: your-primary-domain.tld
-DOMAIN_1: your-secondary-domain.tld
-EOF
-hack/edit-vars.sh            # encrypts to vars/domains.yaml.sops, removes plaintext
-
-# Preview any component exactly as ArgoCD will render it:
-hack/render.sh kubernetes/infrastructure/traefik
-```
-
 ---
 
 ## Phase 2: Talos Configuration
@@ -201,15 +184,14 @@ editor kubernetes/infrastructure/cert-manager/config/clusterissuer-prod.yaml
 
 ### 11. Update placeholder values
 
-Fill in your real values in these files before committing. **Domains are not edited
-here** — they come from `vars/domains.yaml.sops` (step 3b) via the `${DOMAIN_0}` /
-`${DOMAIN_1}` placeholders.
+Fill in your real values in these files before committing:
 
-| File                                                                 | What to update                 |
-| -------------------------------------------------------------------- | ------------------------------ |
-| `kubernetes/infrastructure/metallb/config/ipaddresspool.yaml`        | Your LAN IP range for services |
-| `kubernetes/infrastructure/cert-manager/config/clusterissuer-*.yaml` | AWS region, hosted zone ID     |
-| `kubernetes/infrastructure/nfs-csi/config/storageclass.yaml`         | NFS server IP and share path   |
+| File                                                                 | What to update                     |
+| -------------------------------------------------------------------- | ---------------------------------- |
+| `kubernetes/infrastructure/metallb/config/ipaddresspool.yaml`        | Your LAN IP range for services     |
+| `kubernetes/infrastructure/cert-manager/config/clusterissuer-*.yaml` | Domain, AWS region, hosted zone ID |
+| `kubernetes/infrastructure/traefik/config/wildcard-cert.yaml`        | Your domain                        |
+| `kubernetes/infrastructure/nfs-csi/config/storageclass.yaml`         | NFS server IP and share path       |
 
 ### 12. Install ArgoCD (bootstrap only)
 
@@ -218,12 +200,6 @@ bootstrap/argocd/install.sh
 ```
 
 This installs ArgoCD via Helm and creates the `helm-secrets-private-keys` Secret from your age key.
-
-> **Bootstrap is for a fresh cluster only.** Once ArgoCD self-manages (step 14), do
-> **not** re-run `install.sh` / `helm upgrade` against it — Helm conflicts with
-> ArgoCD's server-side-apply ownership and `selfHeal` reverts it. Change a running
-> cluster **through Git** (commit + push; ArgoCD syncs). The script refuses to run
-> against a self-managed cluster unless `FORCE_BOOTSTRAP=1`.
 
 ### 13. Apply the root ApplicationSet
 

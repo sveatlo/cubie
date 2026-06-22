@@ -3,9 +3,7 @@
 # Apply once after bootstrap to hand ArgoCD control of itself:
 #   kubectl apply -f kubernetes/argocd/application.yaml
 #
-# Rendered through the kustomize-envsubst CMP (kustomization.yaml + values.yaml in
-# this dir) so the domain in values.yaml is substituted at render time. After this,
-# changes to kubernetes/argocd/values.yaml are auto-applied by ArgoCD.
+# After this, changes to kubernetes/argocd/values.yaml are auto-applied by ArgoCD.
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
@@ -19,13 +17,23 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: https://github.com/sveatlo/cubie.git
-    targetRevision: HEAD
-    path: kubernetes/argocd
-    # Render via the kustomize-envsubst CMP (kustomize build --enable-helm, then
-    # substitute ${DOMAIN_0}/${DOMAIN_1} from vars/domains.yaml.sops).
-    plugin:
-      name: kustomize-envsubst
+    repoURL: https://argoproj.github.io/argo-helm
+    chart: argo-cd
+    targetRevision: "9.4.17"
+    helm:
+      valueFiles:
+        - $values/kubernetes/argocd/values.yaml
+  sources:
+    - repoURL: https://argoproj.github.io/argo-helm
+      chart: argo-cd
+      targetRevision: "9.4.17"
+      helm:
+        valueFiles:
+          - $values/kubernetes/argocd/values.yaml
+    - repoURL: https://github.com/sveatlo/cubie.git
+      targetRevision: HEAD
+      ref: values
+      path: kubernetes/apps/
   destination:
     server: https://kubernetes.default.svc
     namespace: argocd

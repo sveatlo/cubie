@@ -19,7 +19,7 @@ spec:
   entryPoints:
     - websecure
   routes:
-    - match: Host(`invoices.${DOMAIN_1}`)
+    - match: Host(`invoices.vunder.io`)
       kind: Rule
       services:
         - name: invoice-ninja

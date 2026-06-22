@@ -8,7 +8,7 @@ metadata:
 spec:
   acme:
     server: https://acme-v02.api.letsencrypt.org/directory
-    email: svatopluk@${DOMAIN_1}
+    email: svatopluk@vunder.io
     privateKeySecretRef:
       name: letsencrypt-prod-account-key
     solvers:
