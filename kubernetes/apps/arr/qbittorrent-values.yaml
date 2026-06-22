@@ -27,7 +27,7 @@ ingress:
       traefik.ingress.kubernetes.io/router.tls: "true"
       traefik.ingress.kubernetes.io/router.middlewares: traefik-lan-only@kubernetescrd
     hosts:
-      - host: dwnlds.mirkwood.casa
+      - host: dwnlds.${DOMAIN_0}
         paths:
           - path: /
             service:

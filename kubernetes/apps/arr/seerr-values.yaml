@@ -7,7 +7,7 @@ ingress:
     traefik.ingress.kubernetes.io/router.tls: "true"
     traefik.ingress.kubernetes.io/router.middlewares: traefik-lan-only@kubernetescrd
   hosts:
-    - host: seerr.mirkwood.casa
+    - host: seerr.${DOMAIN_0}
       paths:
         - path: /
           pathType: ImplementationSpecific

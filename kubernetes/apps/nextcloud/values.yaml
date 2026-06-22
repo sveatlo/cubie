@@ -1,6 +1,6 @@
 ---
 nextcloud:
-  host: cloud.mirkwood.casa
+  host: cloud.${DOMAIN_0}
 
   existingSecret:
     enabled: true
@@ -12,7 +12,7 @@ nextcloud:
     smtpHostKey: smtp-host
 
   trustedDomains:
-    - cloud.mirkwood.casa
+    - cloud.${DOMAIN_0}
 
   configs:
     proxy.config.php: |-
@@ -71,7 +71,7 @@ ingress:
     traefik.ingress.kubernetes.io/router.entrypoints: websecure
     traefik.ingress.kubernetes.io/router.tls: "true"
   hosts:
-    - host: cloud.mirkwood.casa
+    - host: cloud.${DOMAIN_0}
       paths:
         - path: /
           pathType: Prefix

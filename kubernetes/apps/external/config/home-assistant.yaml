@@ -19,7 +19,7 @@ spec:
   entryPoints:
     - websecure
   routes:
-    - match: Host(`assistant.mirkwood.casa`)
+    - match: Host(`assistant.${DOMAIN_0}`)
       kind: Rule
       services:
         - name: home-assistant

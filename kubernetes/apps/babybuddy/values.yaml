@@ -18,8 +18,8 @@ controllers:
               secretKeyRef:
                 name: babybuddy-db-app
                 key: password
-          ALLOWED_HOSTS: baby.mirkwood.casa
-          CSRF_TRUSTED_ORIGINS: https://baby.mirkwood.casa
+          ALLOWED_HOSTS: baby.${DOMAIN_0}
+          CSRF_TRUSTED_ORIGINS: https://baby.${DOMAIN_0}
           SECRET_KEY:
             valueFrom:
               secretKeyRef:
@@ -42,7 +42,7 @@ ingress:
       traefik.ingress.kubernetes.io/router.tls: "true"
       traefik.ingress.kubernetes.io/router.middlewares: traefik-lan-only@kubernetescrd
     hosts:
-      - host: baby.mirkwood.casa
+      - host: baby.${DOMAIN_0}
         paths:
           - path: /
             pathType: Prefix

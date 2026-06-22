@@ -51,7 +51,7 @@ ingress:
       traefik.ingress.kubernetes.io/router.entrypoints: websecure
       traefik.ingress.kubernetes.io/router.tls: "true"
     hosts:
-      - host: archive.mirkwood.casa
+      - host: archive.${DOMAIN_0}
         paths:
           - path: /
             pathType: Prefix

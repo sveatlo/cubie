@@ -47,6 +47,10 @@ spec:
         repoURL: *repoURL
         targetRevision: *revision
         path: "{{ .path.path }}"
+        # Render via the kustomize-envsubst CMP sidecar (see kubernetes/argocd/values.yaml):
+        # kustomize build --enable-helm, then substitute ${DOMAIN_0}/${DOMAIN_1}.
+        plugin:
+          name: kustomize-envsubst
       destination:
         server: https://kubernetes.default.svc
         # Each component's kustomization.yaml sets its own namespace

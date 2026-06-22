@@ -36,7 +36,7 @@ ingress:
       traefik.ingress.kubernetes.io/router.tls: "true"
       traefik.ingress.kubernetes.io/router.middlewares: traefik-lan-only@kubernetescrd
     hosts:
-      - host: livrarr.mirkwood.casa
+      - host: livrarr.${DOMAIN_0}
         paths:
           - path: /
             service:

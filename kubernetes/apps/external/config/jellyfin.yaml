@@ -19,7 +19,7 @@ spec:
   entryPoints:
     - websecure
   routes:
-    - match: Host(`play.mirkwood.casa`)
+    - match: Host(`play.${DOMAIN_0}`)
       kind: Rule
       services:
         - name: jellyfin

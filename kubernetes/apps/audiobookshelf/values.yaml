@@ -23,7 +23,7 @@ ingress:
       traefik.ingress.kubernetes.io/router.entrypoints: websecure
       traefik.ingress.kubernetes.io/router.tls: "true"
     hosts:
-      - host: abs.mirkwood.casa
+      - host: abs.${DOMAIN_0}
         paths:
           - path: /
             service:

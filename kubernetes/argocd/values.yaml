@@ -4,7 +4,7 @@
 # Changes here are auto-applied by ArgoCD once self-management is active.
 
 global:
-  domain: argocd.mirkwood.casa
+  domain: argocd.${DOMAIN_0}
 
 configs:
   params:
@@ -12,7 +12,7 @@ configs:
     applicationsetcontroller.policy: sync
 
   cm:
-    url: https://argocd.mirkwood.casa
+    url: https://argocd.${DOMAIN_0}
     kustomize.buildOptions: "--enable-helm"
     application.resourceTrackingMethod: annotation
     resource.customizations.ignoreDifferences.apps_DaemonSet: |
@@ -33,7 +33,7 @@ server:
   ingress:
     enabled: true
     ingressClassName: traefik
-    hostname: argocd.mirkwood.casa
+    hostname: argocd.${DOMAIN_0}
     annotations:
       traefik.ingress.kubernetes.io/router.entrypoints: websecure
       traefik.ingress.kubernetes.io/router.tls: "true"

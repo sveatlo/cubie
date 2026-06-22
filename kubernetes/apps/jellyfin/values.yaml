@@ -9,7 +9,7 @@ ingress:
     traefik.ingress.kubernetes.io/router.entrypoints: websecure
     traefik.ingress.kubernetes.io/router.tls: "true"
   hosts:
-    - host: jellyfin.mirkwood.casa
+    - host: jellyfin.${DOMAIN_0}
       paths:
         - path: /
           pathType: Prefix

@@ -7,7 +7,7 @@ metadata:
 spec:
   redirectRegex:
     regex: ^https://traefik\.mirkwood\.casa/$
-    replacement: https://traefik.mirkwood.casa/dashboard/
+    replacement: https://traefik.${DOMAIN_0}/dashboard/
     permanent: true
 ---
 apiVersion: traefik.io/v1alpha1
@@ -19,7 +19,7 @@ spec:
   entryPoints:
     - websecure
   routes:
-    - match: Host(`traefik.mirkwood.casa`) && PathPrefix(`/`)
+    - match: Host(`traefik.${DOMAIN_0}`) && PathPrefix(`/`)
       kind: Rule
       middlewares:
         - name: lan-only

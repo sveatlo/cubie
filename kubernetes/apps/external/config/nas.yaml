@@ -27,7 +27,7 @@ spec:
   entryPoints:
     - websecure
   routes:
-    - match: Host(`nas.mirkwood.casa`)
+    - match: Host(`nas.${DOMAIN_0}`)
       kind: Rule
       middlewares:
         - name: lan-only

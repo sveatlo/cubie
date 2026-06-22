@@ -18,7 +18,7 @@ grafana:
       traefik.ingress.kubernetes.io/router.tls: "true"
       traefik.ingress.kubernetes.io/router.middlewares: traefik-lan-only@kubernetescrd
     hosts:
-      - grafana.mirkwood.casa
+      - grafana.${DOMAIN_0}
   persistence:
     enabled: true
     storageClassName: nfs
@@ -33,7 +33,7 @@ prometheus:
       traefik.ingress.kubernetes.io/router.tls: "true"
       traefik.ingress.kubernetes.io/router.middlewares: traefik-lan-only@kubernetescrd
     hosts:
-      - prometheus.mirkwood.casa
+      - prometheus.${DOMAIN_0}
   prometheusSpec:
     retention: 30d
     serviceMonitorSelectorNilUsesHelmValues: false
@@ -67,7 +67,7 @@ alertmanager:
       traefik.ingress.kubernetes.io/router.tls: "true"
       traefik.ingress.kubernetes.io/router.middlewares: traefik-lan-only@kubernetescrd
     hosts:
-      - alertmanager.mirkwood.casa
+      - alertmanager.${DOMAIN_0}
   alertmanagerSpec:
     secrets:
       - alertmanager-smtp-password
@@ -83,8 +83,8 @@ alertmanager:
   stringConfig: |
     global:
       smtp_smarthost: "mail-eu.smtp2go.com:587"
-      smtp_from: "alertmanager@mirkwood.casa"
-      smtp_auth_username: "alertmanager@mirkwood.casa"
+      smtp_from: "alertmanager@${DOMAIN_0}"
+      smtp_auth_username: "alertmanager@${DOMAIN_0}"
       smtp_auth_password_file: /etc/alertmanager/secrets/alertmanager-smtp-password/smtp-password
       smtp_require_tls: true
 
@@ -94,5 +94,5 @@ alertmanager:
     receivers:
       - name: "default"
         email_configs:
-          - to: "sysadmin@mirkwood.casa"
+          - to: "sysadmin@${DOMAIN_0}"
             send_resolved: true

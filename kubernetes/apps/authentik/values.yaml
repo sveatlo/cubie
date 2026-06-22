@@ -34,11 +34,11 @@ authentik:
   email:
     host: "mail-eu.smtp2go.com"
     port: 587
-    username: "auth@mirkwood.casa"
+    username: "auth@${DOMAIN_0}"
     use_tls: true
     use_ssl: false
     timeout: 30
-    from: "Authentik <auth@mirkwood.casa>"
+    from: "Authentik <auth@${DOMAIN_0}>"
 
 server:
   ingress:
@@ -48,7 +48,7 @@ server:
       traefik.ingress.kubernetes.io/router.entrypoints: websecure
       traefik.ingress.kubernetes.io/router.tls: "true"
     hosts:
-      - auth.mirkwood.casa
+      - auth.${DOMAIN_0}
 
 postgresql:
   enabled: false
