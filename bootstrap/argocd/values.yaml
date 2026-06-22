@@ -214,9 +214,10 @@ extraObjects:
         metadata:
           name: kustomize-envsubst
         spec:
-          discover:
-            find:
-              glob: "**/kustomization.yaml"
+          # No discover block: the plugin is only ever selected by explicit
+          # `source.plugin.name`. Auto-discovery would wrongly claim values-ref
+          # sources (e.g. a multi-source app's values path) that have no root
+          # kustomization.yaml and fail.
           generate:
             command:
               - bash
