@@ -18,6 +18,10 @@ configs:
     resource.customizations.ignoreDifferences.apps_DaemonSet: |
       jsonPointers:
       - /status/terminatingReplicas
+    resource.customizations.ignoreDifferences.core_PersistentVolumeClaim: |
+      jsonPointers:
+      - /spec/volumeName
+      - /spec/storageClassName
 
   rbac:
     policy.default: role:readonly
