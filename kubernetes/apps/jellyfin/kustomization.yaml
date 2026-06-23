@@ -4,6 +4,7 @@ kind: Kustomization
 namespace: jellyfin
 
 resources:
+  - namespace.yaml
   - config/media-storage.yaml
 
 helmCharts:

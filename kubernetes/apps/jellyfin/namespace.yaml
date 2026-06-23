@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: jellyfin
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
+  labels:
+    # Jellyfin mounts /dev/dri (hostPath) for GPU transcoding, which the default
+    # baseline PodSecurity level forbids — the namespace must allow privileged pods.
+    pod-security.kubernetes.io/enforce: privileged
