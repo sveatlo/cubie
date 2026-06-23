@@ -14,6 +14,15 @@ spec:
     - ReadWriteMany
   persistentVolumeReclaimPolicy: Retain
   storageClassName: ""
+  # Pin this PV to exactly one claim so no other PVC can bind to it (prevents the
+  # loose any-PVC-grabs-any-PV binding that caused storage cross-binding issues).
+  claimRef:
+    namespace: jellyfin
+    name: jellyfin-media
+  # Jellyfin mounts media read-only; enforce it at the NFS mount so a rogue
+  # writer can't modify the export even if it gained access.
+  mountOptions:
+    - ro
   nfs:
     server: 10.69.10.3
     path: /mnt/tank/media
