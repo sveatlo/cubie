@@ -1,0 +1,33 @@
+---
+# Static NFS-backed volume for the Jellyfin media library.
+# The jellyfin chart always renders a `media` volume mounted at /media; we point
+# it at this pre-existing claim via persistence.media.existingClaim so there is
+# exactly one `media` volume (avoids the duplicate-volume error under SSA).
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: jellyfin-media
+spec:
+  capacity:
+    storage: 1Ti
+  accessModes:
+    - ReadWriteMany
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: ""
+  nfs:
+    server: 10.69.10.3
+    path: /mnt/tank/media
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: jellyfin-media
+  namespace: jellyfin
+spec:
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 1Ti
+  storageClassName: ""
+  volumeName: jellyfin-media

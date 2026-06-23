@@ -21,20 +21,19 @@ persistence:
     storageClassName: nfs
     size: 5Gi
   media:
-    enabled: false
+    # Use the static NFS-backed PVC (config/media-storage.yaml) as the chart's
+    # single `media` volume — avoids a duplicate `media` volume from also adding
+    # one under `volumes:` (rejected by ServerSideApply).
+    enabled: true
+    type: pvc
+    existingClaim: jellyfin-media
+    readOnly: true
 
 volumes:
-  - name: media
-    nfs:
-      server: 10.69.10.3
-      path: /mnt/tank/media
   - name: dri
     hostPath:
       path: /dev/dri
 
 volumeMounts:
-  - name: media
-    mountPath: /media
-    readOnly: true
   - name: dri
     mountPath: /dev/dri

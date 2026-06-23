@@ -27,3 +27,4 @@ tmp/
 *.tmp
 
 docs/plans/
+kubernetes/**/charts/
