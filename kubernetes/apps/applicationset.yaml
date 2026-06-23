@@ -62,6 +62,13 @@ spec:
           jsonPointers:
             - /spec/volumeName
             - /spec/storageClassName
+        # StatefulSet volumeClaimTemplates are immutable after creation; the API
+        # injects apiVersion/kind/status/volumeMode that the chart output omits, so
+        # ArgoCD reports a diff it can never reconcile (perpetual OutOfSync).
+        - group: apps
+          kind: StatefulSet
+          jsonPointers:
+            - /spec/volumeClaimTemplates
       syncPolicy:
         automated:
           prune: true
