@@ -25,6 +25,24 @@ controllers:
               secretKeyRef:
                 name: babybuddy-secret
                 key: secret-key
+        # TCP probes on the nginx port (8000). HTTP probes can't be used here:
+        # kubelet sends the pod IP as the Host header, which Django rejects with
+        # 400 DisallowedHost (ALLOWED_HOSTS=baby.${DOMAIN_0}). A failed s6 init
+        # leaves nothing listening on 8000, so TCP is enough to detect it.
+        probes:
+          liveness:
+            enabled: true
+            type: TCP
+          readiness:
+            enabled: true
+            type: TCP
+          startup:
+            enabled: true
+            type: TCP
+            spec:
+              # ~150s to cover first-boot migrations before liveness kicks in
+              failureThreshold: 30
+              periodSeconds: 5
 
 service:
   babybuddy:
