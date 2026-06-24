@@ -1,0 +1,60 @@
+---
+global:
+  env:
+    - name: AUTHENTIK_SECRET_KEY
+      valueFrom:
+        secretKeyRef:
+          name: authentik-secret
+          key: secret-key
+    - name: AUTHENTIK_POSTGRESQL__PASSWORD
+      valueFrom:
+        secretKeyRef:
+          name: authentik-db-app
+          key: password
+    - name: AUTHENTIK_EMAIL__PASSWORD
+      valueFrom:
+        secretKeyRef:
+          name: authentik-secret
+          key: smtp-password
+
+authentik:
+  general:
+    allowUserChangeEmail: true
+    allowUserChangeName: true
+    allowUserChangeUsername: true
+    impersonation: true
+    footerLinks:
+      - href: https://${DOMAIN_0}
+        name: Mirkwood
+  postgresql:
+    host: "authentik-db-rw"
+    port: 5432
+    name: "authentik"
+    user: "authentik"
+  email:
+    host: "mail-eu.smtp2go.com"
+    port: 587
+    username: "auth@${DOMAIN_0}"
+    use_tls: true
+    use_ssl: false
+    timeout: 30
+    from: "Authentik <auth@${DOMAIN_0}>"
+
+server:
+  ingress:
+    enabled: true
+    ingressClassName: traefik
+    annotations:
+      traefik.ingress.kubernetes.io/router.entrypoints: websecure
+      traefik.ingress.kubernetes.io/router.tls: "true"
+    hosts:
+      - auth.${DOMAIN_0}
+
+postgresql:
+  enabled: false
+
+redis:
+  enabled: true
+  architecture: standalone
+  auth:
+    enabled: false

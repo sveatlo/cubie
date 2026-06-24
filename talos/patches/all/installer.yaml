@@ -1,0 +1,6 @@
+---
+machine:
+  install:
+    diskSelector:
+      size: <= 1600GB
+    image: factory.talos.dev/metal-installer-secureboot/aeec243e3a4c2a14f9ba74b1a8c7662f03eea658a7ea5f1c26fdd491280c88f8:v1.12.6

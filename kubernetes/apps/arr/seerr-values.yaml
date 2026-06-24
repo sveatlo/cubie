@@ -1,0 +1,20 @@
+---
+ingress:
+  enabled: true
+  className: traefik
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    traefik.ingress.kubernetes.io/router.tls: "true"
+    traefik.ingress.kubernetes.io/router.middlewares: traefik-lan-only@kubernetescrd
+  hosts:
+    - host: seerr.${DOMAIN_0}
+      paths:
+        - path: /
+          pathType: ImplementationSpecific
+
+persistence:
+  config:
+    enabled: true
+    storageClass: nfs
+    accessMode: ReadWriteOnce
+    size: 5Gi

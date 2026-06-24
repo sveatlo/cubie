@@ -1,0 +1,93 @@
+---
+# LND — Lightning node backed by the pruned bitcoind above.
+# Talks to bitcoind over RPC + ZMQ. With a pruned backend LND fetches
+# historical blocks from the P2P network as needed.
+# lnd.conf (with bitcoind rpcpass) and the wallet auto-unlock password come
+# from the `lnd-config` SOPS secret.
+# Data PVC is ReadWriteMany so ThunderHub can read the macaroon + tls cert.
+apiVersion: v1
+kind: Service
+metadata:
+  name: lnd
+  labels:
+    app.kubernetes.io/name: lnd
+spec:
+  selector:
+    app.kubernetes.io/name: lnd
+  ports:
+    - name: grpc
+      port: 10009
+      targetPort: grpc
+    - name: rest
+      port: 8080
+      targetPort: rest
+    - name: p2p
+      port: 9735
+      targetPort: p2p
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: lnd
+  labels:
+    app.kubernetes.io/name: lnd
+spec:
+  serviceName: lnd
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: lnd
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: lnd
+    spec:
+      securityContext:
+        runAsUser: 0
+        fsGroup: 0
+      containers:
+        - name: lnd
+          image: lightninglabs/lnd:v0.20.1-beta
+          ports:
+            - name: grpc
+              containerPort: 10009
+            - name: rest
+              containerPort: 8080
+            - name: p2p
+              containerPort: 9735
+          volumeMounts:
+            - name: data
+              mountPath: /root/.lnd
+            - name: config
+              mountPath: /root/.lnd/lnd.conf
+              subPath: lnd.conf
+              readOnly: true
+            - name: config
+              mountPath: /root/.lnd/wallet-password
+              subPath: wallet-password
+              readOnly: true
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              memory: 1Gi
+          readinessProbe:
+            tcpSocket:
+              port: grpc
+            initialDelaySeconds: 30
+            periodSeconds: 30
+      volumes:
+        - name: config
+          secret:
+            secretName: lnd-config
+            defaultMode: 0400
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteMany"]
+        storageClassName: nfs
+        resources:
+          requests:
+            storage: 5Gi

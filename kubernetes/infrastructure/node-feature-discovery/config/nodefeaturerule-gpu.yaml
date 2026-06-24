@@ -1,0 +1,17 @@
+---
+apiVersion: nfd.k8s-sigs.io/v1alpha1
+kind: NodeFeatureRule
+metadata:
+  name: gpu-igpu
+  namespace: node-feature-discovery
+spec:
+  rules:
+    - name: "amd-igpu"
+      labels:
+        gpu.igpu: "true"
+        gpu.igpu.vendor: "amd"
+      matchFeatures:
+        - feature: pci.device
+          matchExpressions:
+            vendor: {op: In, value: ["1002"]}
+            class: {op: In, value: ["0300"]}

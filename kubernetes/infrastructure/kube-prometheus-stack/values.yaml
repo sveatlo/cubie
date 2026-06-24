@@ -1,0 +1,98 @@
+---
+grafana:
+  admin:
+    existingSecret: grafana-admin-secret
+    userKey: admin-user
+    passwordKey: admin-password
+  sidecar:
+    dashboards:
+      enabled: true
+      label: grafana_dashboard
+      labelValue: "1"
+      searchNamespace: ALL
+  ingress:
+    enabled: true
+    ingressClassName: traefik
+    annotations:
+      traefik.ingress.kubernetes.io/router.entrypoints: websecure
+      traefik.ingress.kubernetes.io/router.tls: "true"
+      traefik.ingress.kubernetes.io/router.middlewares: traefik-lan-only@kubernetescrd
+    hosts:
+      - grafana.${DOMAIN_0}
+  persistence:
+    enabled: true
+    storageClassName: nfs
+    size: 10Gi
+
+prometheus:
+  ingress:
+    enabled: true
+    ingressClassName: traefik
+    annotations:
+      traefik.ingress.kubernetes.io/router.entrypoints: websecure
+      traefik.ingress.kubernetes.io/router.tls: "true"
+      traefik.ingress.kubernetes.io/router.middlewares: traefik-lan-only@kubernetescrd
+    hosts:
+      - prometheus.${DOMAIN_0}
+  prometheusSpec:
+    retention: 30d
+    serviceMonitorSelectorNilUsesHelmValues: false
+    ruleSelectorNilUsesHelmValues: false
+    ruleNamespaceSelector: {}
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          storageClassName: nfs
+          resources:
+            requests:
+              storage: 50Gi
+  additionalServiceMonitors:
+    - name: traefik
+      selector:
+        matchLabels:
+          app.kubernetes.io/name: traefik
+      namespaceSelector:
+        matchNames:
+          - traefik
+      endpoints:
+        - port: metrics
+          path: /metrics
+
+alertmanager:
+  ingress:
+    enabled: true
+    ingressClassName: traefik
+    annotations:
+      traefik.ingress.kubernetes.io/router.entrypoints: websecure
+      traefik.ingress.kubernetes.io/router.tls: "true"
+      traefik.ingress.kubernetes.io/router.middlewares: traefik-lan-only@kubernetescrd
+    hosts:
+      - alertmanager.${DOMAIN_0}
+  alertmanagerSpec:
+    secrets:
+      - alertmanager-smtp-password
+    storage:
+      volumeClaimTemplate:
+        spec:
+          storageClassName: nfs
+          resources:
+            requests:
+              storage: 5Gi
+
+  tplConfig: true
+  stringConfig: |
+    global:
+      smtp_smarthost: "mail-eu.smtp2go.com:587"
+      smtp_from: "alertmanager@${DOMAIN_0}"
+      smtp_auth_username: "alertmanager@${DOMAIN_0}"
+      smtp_auth_password_file: /etc/alertmanager/secrets/alertmanager-smtp-password/smtp-password
+      smtp_require_tls: true
+
+    route:
+      receiver: "default"
+
+    receivers:
+      - name: "default"
+        email_configs:
+          - to: "sysadmin@${DOMAIN_0}"
+            send_resolved: true

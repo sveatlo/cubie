@@ -1,0 +1,11 @@
+---
+# MetalLB IP address pool for LoadBalancer services.
+apiVersion: metallb.io/v1beta1
+kind: IPAddressPool
+metadata:
+  name: lan-pool
+  namespace: metallb-system
+spec:
+  addresses:
+    - 10.69.11.1-10.69.11.199
+  autoAssign: true

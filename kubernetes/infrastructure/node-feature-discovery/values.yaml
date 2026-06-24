@@ -1,0 +1,12 @@
+---
+master:
+  replicaCount: 1
+
+gc:
+  enabled: true
+
+topologyUpdater:
+  enabled: false
+
+prometheus:
+  enable: true

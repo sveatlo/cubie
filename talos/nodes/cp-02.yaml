@@ -1,0 +1,11 @@
+---
+machine:
+  network:
+    interfaces:
+      - interface: ens18
+        addresses:
+          - 10.69.10.248/23
+        routes:
+          - network: 0.0.0.0/0
+            gateway: 10.69.10.1
+        dhcp: false

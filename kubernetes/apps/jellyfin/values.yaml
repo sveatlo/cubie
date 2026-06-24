@@ -1,0 +1,39 @@
+---
+nodeSelector:
+  feature.node.kubernetes.io/gpu.igpu: "true"
+
+ingress:
+  enabled: true
+  className: traefik
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    traefik.ingress.kubernetes.io/router.tls: "true"
+  hosts:
+    - host: jellyfin.${DOMAIN_0}
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+
+persistence:
+  config:
+    enabled: true
+    storageClassName: nfs
+    size: 5Gi
+  media:
+    # Use the static NFS-backed PVC (config/media-storage.yaml) as the chart's
+    # single `media` volume — avoids a duplicate `media` volume from also adding
+    # one under `volumes:` (rejected by ServerSideApply).
+    enabled: true
+    type: pvc
+    existingClaim: jellyfin-media
+    readOnly: true
+
+volumes:
+  - name: dri
+    hostPath:
+      path: /dev/dri
+
+volumeMounts:
+  - name: dri
+    mountPath: /dev/dri

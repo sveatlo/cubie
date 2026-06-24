@@ -1,0 +1,78 @@
+---
+# ThunderHub — web UI for the LND node.
+# Reads admin.macaroon + tls.cert from LND's data PVC (mounted read-only).
+# thubConfig.yaml (with masterPassword + account) comes from the
+# `thunderhub-config` SOPS secret.
+apiVersion: v1
+kind: Service
+metadata:
+  name: thunderhub
+  labels:
+    app.kubernetes.io/name: thunderhub
+spec:
+  selector:
+    app.kubernetes.io/name: thunderhub
+  ports:
+    - name: http
+      port: 3000
+      targetPort: http
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: thunderhub
+  labels:
+    app.kubernetes.io/name: thunderhub
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: thunderhub
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: thunderhub
+    spec:
+      # LND writes macaroons as 0600 root; run as root so ThunderHub can read
+      # the admin.macaroon off the read-only LND PVC mount.
+      securityContext:
+        runAsUser: 0
+        runAsGroup: 0
+      containers:
+        - name: thunderhub
+          image: apotdevin/thunderhub:0.18.4
+          env:
+            - name: NODE_ENV
+              value: production
+            - name: ACCOUNT_CONFIG_PATH
+              value: /config/thubConfig.yaml
+          ports:
+            - name: http
+              containerPort: 3000
+          volumeMounts:
+            - name: config
+              mountPath: /config
+              readOnly: true
+            - name: lnd-data
+              mountPath: /lnd
+              readOnly: true
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              memory: 256Mi
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 20
+            periodSeconds: 30
+      volumes:
+        - name: config
+          secret:
+            secretName: thunderhub-config
+        - name: lnd-data
+          persistentVolumeClaim:
+            claimName: data-lnd-0
+            readOnly: true

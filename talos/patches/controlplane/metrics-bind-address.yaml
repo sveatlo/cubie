@@ -1,0 +1,12 @@
+---
+# Make kube-scheduler and kube-controller-manager listen on all interfaces
+# so Prometheus can scrape their metrics endpoints.
+# By default on Talos, these components bind to 127.0.0.1, which makes
+# the kube-prometheus-stack TargetDown alerts fire.
+cluster:
+  scheduler:
+    extraArgs:
+      bind-address: 0.0.0.0
+  controllerManager:
+    extraArgs:
+      bind-address: 0.0.0.0

@@ -1,0 +1,39 @@
+---
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: authentik-db
+  namespace: authentik
+spec:
+  instances: 1
+
+  postgresql:
+    parameters:
+      shared_buffers: "256MB"
+      effective_cache_size: "512MB"
+
+  storage:
+    size: 5Gi
+    storageClass: nfs
+
+  bootstrap:
+    initdb:
+      database: authentik
+      owner: authentik
+      encoding: UTF8
+      localeCType: C
+      localeCollate: C
+
+  # Backup — uncomment when S3-compatible storage is available:
+  # backup:
+  #   barmanObjectStore:
+  #     destinationPath: "s3://backups/cnpg/authentik-db"
+  #     endpointURL: "https://s3.example.com"
+  #     s3Credentials:
+  #       accessKeyId:
+  #         name: cnpg-backup-credentials
+  #         key: ACCESS_KEY_ID
+  #       secretAccessKey:
+  #         name: cnpg-backup-credentials
+  #         key: SECRET_ACCESS_KEY
+  #   retentionPolicy: "30d"

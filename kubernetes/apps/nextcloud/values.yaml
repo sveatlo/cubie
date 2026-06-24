@@ -1,0 +1,107 @@
+---
+nextcloud:
+  host: cloud.${DOMAIN_0}
+
+  existingSecret:
+    enabled: true
+    secretName: nextcloud-secret
+    usernameKey: nextcloud-username
+    passwordKey: nextcloud-password
+    smtpUsernameKey: smtp-username
+    smtpPasswordKey: smtp-password
+    smtpHostKey: smtp-host
+
+  trustedDomains:
+    - cloud.${DOMAIN_0}
+
+  configs:
+    proxy.config.php: |-
+      <?php
+      $CONFIG = array (
+        'trusted_proxies' => array('10.0.0.0/8'),
+        'overwriteprotocol' => 'https',
+      );
+
+lifecycle:
+  postStartCommand:
+    - /bin/bash
+    - -c
+    - |
+      set -e
+
+      apt-get update
+      apt-get install -y libsmbclient-dev gcc make autoconf libc-dev pkg-config
+      pecl install smbclient
+      docker-php-ext-enable smbclient
+
+phpClientHttpsFix:
+  enabled: true
+  protocol: https
+
+internalDatabase:
+  enabled: false
+
+mariadb:
+  enabled: false
+
+postgresql:
+  enabled: false
+
+externalDatabase:
+  enabled: true
+  type: postgresql
+  host: nextcloud-db-rw
+  user: nextcloud
+  database: nextcloud
+  existingSecret:
+    enabled: true
+    secretName: nextcloud-db-app
+    usernameKey: username
+    passwordKey: password
+
+redis:
+  enabled: true
+  auth:
+    enabled: false
+
+ingress:
+  enabled: true
+  className: traefik
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    traefik.ingress.kubernetes.io/router.tls: "true"
+  hosts:
+    - host: cloud.${DOMAIN_0}
+      paths:
+        - path: /
+          pathType: Prefix
+
+persistence:
+  enabled: true
+  storageClass: nfs
+  size: 100Gi
+  accessMode: ReadWriteMany
+
+livenessProbe:
+  initialDelaySeconds: 300
+  periodSeconds: 300
+  timeoutSeconds: 5
+  failureThreshold: 5
+  successThreshold: 1
+
+readinessProbe:
+  initialDelaySeconds: 300
+  periodSeconds: 300
+  timeoutSeconds: 5
+  failureThreshold: 5
+  successThreshold: 1
+
+startupProbe:
+  initialDelaySeconds: 300
+  periodSeconds: 300
+  timeoutSeconds: 5
+  failureThreshold: 5
+  successThreshold: 1
+
+cronjob:
+  enabled: true

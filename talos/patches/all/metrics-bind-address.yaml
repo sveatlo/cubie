@@ -1,0 +1,8 @@
+---
+# Make kube-proxy listen on all interfaces so Prometheus can scrape its metrics.
+# By default on Talos, kube-proxy binds metrics to 127.0.0.1:10249,
+# which makes the kube-prometheus-stack TargetDown alert fire.
+cluster:
+  proxy:
+    extraArgs:
+      metrics-bind-address: "0.0.0.0:10249"

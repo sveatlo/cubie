@@ -1,0 +1,20 @@
+---
+# ArgoCD self-management, rendered through the kustomize-envsubst CMP (see the
+# Application in application.yaml). Inflates the argo-cd Helm chart with values.yaml
+# (so argocd.${DOMAIN_0} in the values is substituted at render time) AND owns the
+# cluster-apps ApplicationSet so it is part of argocd's desired state and never pruned
+# (the ownership fix from recovery commit 97c39c4, previously a 3rd source).
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+helmCharts:
+  - name: argo-cd
+    repo: https://argoproj.github.io/argo-helm
+    version: "9.4.17"
+    releaseName: argocd
+    namespace: argocd
+    valuesFile: values.yaml
+    includeCRDs: true
+
+resources:
+  - applicationset.yaml

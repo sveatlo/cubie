@@ -1,0 +1,89 @@
+---
+# Root ApplicationSet — auto-discovers all infrastructure and app directories.
+# Apply this once after ArgoCD is installed:
+#   kubectl apply -f kubernetes/apps/applicationset.yaml
+#
+# It watches two path patterns:
+#   kubernetes/infrastructure/*  — platform components (wave-ordered)
+#   kubernetes/apps/*            — workloads
+#
+# Each discovered directory must contain a kustomization.yaml.
+# ArgoCD creates one Application per directory.
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: cluster-apps
+  namespace: argocd
+spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
+  generators:
+    - matrix:
+        generators:
+          # Generator 1: which path patterns to scan
+          - list:
+              elements:
+                - basePath: kubernetes/infrastructure
+                  wave: "0"
+                - basePath: kubernetes/apps
+                  wave: "3"
+          # Generator 2: find all directories under each path
+          - git:
+              repoURL: &repoURL https://github.com/sveatlo/cubie.git
+              revision: &revision HEAD
+              directories:
+                - path: "{{ .basePath }}/*"
+  template:
+    metadata:
+      # App name derived from directory name (e.g. "metallb", "cert-manager")
+      name: "{{ .path.basename }}"
+      namespace: argocd
+      annotations:
+        # Per-component wave is set in each application.yaml; default to matrix wave
+        argocd.argoproj.io/sync-wave: "{{ .wave }}"
+    spec:
+      project: default
+      source:
+        repoURL: *repoURL
+        targetRevision: *revision
+        path: "{{ .path.path }}"
+        # Render via the kustomize-envsubst CMP sidecar (kubernetes/argocd/values.yaml):
+        # kustomize build --enable-helm, then substitute ${DOMAIN_0}/${DOMAIN_1}.
+        plugin:
+          name: kustomize-envsubst
+      destination:
+        server: https://kubernetes.default.svc
+        # Each component's kustomization.yaml sets its own namespace
+        namespace: "{{ .path.basename }}"
+      # PVCs are pre-bound to retained PVs for data recovery; their spec.volumeName
+      # and spec.storageClassName diverge from the chart-rendered (empty) values and
+      # are immutable once bound. Explicit empty group ("") is required — the global
+      # `core_PersistentVolumeClaim` argocd-cm key is NOT honored for core resources.
+      # Paired with RespectIgnoreDifferences=true so ArgoCD skips these fields on apply.
+      ignoreDifferences:
+        - group: ""
+          kind: PersistentVolumeClaim
+          jsonPointers:
+            - /spec/volumeName
+            - /spec/storageClassName
+        # StatefulSet volumeClaimTemplates are immutable after creation; the API
+        # injects apiVersion/kind/status/volumeMode that the chart output omits, so
+        # ArgoCD reports a diff it can never reconcile (perpetual OutOfSync).
+        - group: apps
+          kind: StatefulSet
+          jsonPointers:
+            - /spec/volumeClaimTemplates
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
+        syncOptions:
+          - CreateNamespace=true
+          - ServerSideApply=true
+          - RespectIgnoreDifferences=true
+        retry:
+          limit: 5
+          backoff:
+            duration: 5s
+            factor: 2
+            maxDuration: 3m

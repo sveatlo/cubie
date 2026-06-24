@@ -1,0 +1,40 @@
+---
+# NFS CSI Driver Helm values
+driver:
+  name: nfs.csi.k8s.io
+
+controller:
+  replicas: 2
+
+# Node plugin runs on all nodes to mount NFS volumes
+node:
+  maxUnavailable: 1
+
+externalSnapshotter:
+  enabled: true
+
+storageClass:
+  create: true
+  name: nfs
+  annotations:
+    storageclass.kubernetes.io/is-default-class: "true"
+  parameters:
+    server: 10.69.10.3
+    share: /mnt/rapida/cubie
+    subdir: "${pvc.metadata.namespace}/${pvc.metadata.name}/${pv.metadata.name}"
+    mountPermissions: "0"
+  reclaimPolicy: Retain # Retain PV data when PVC is deleted
+  volumeBindingMode: Immediate
+  allowVolumeExpansion: true
+  mountOptions:
+    - nfsvers=4.1
+    - hard
+    - nointr
+    - noatime
+
+volumeSnapshotClass:
+  create: true
+  annotations:
+    snapshot.storage.kubernetes.io/is-default-class: "true"
+  name: nfs-snapshot
+  deletionPolicy: Delete

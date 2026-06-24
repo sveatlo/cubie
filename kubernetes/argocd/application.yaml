@@ -1,0 +1,37 @@
+---
+# ArgoCD self-management Application.
+# Apply once after bootstrap to hand ArgoCD control of itself:
+#   kubectl apply -f kubernetes/argocd/application.yaml
+#
+# Rendered through the kustomize-envsubst CMP (kustomization.yaml in this dir inflates
+# the argo-cd chart with values.yaml and owns the cluster-apps ApplicationSet) so the
+# domain in values.yaml (argocd.${DOMAIN_0}) is substituted at render time and never
+# committed in plaintext. After this, changes to kubernetes/argocd/ are auto-applied.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: argocd
+  namespace: argocd
+  annotations:
+    # sync-wave "-1" — ArgoCD must be healthy before infrastructure apps sync
+    argocd.argoproj.io/sync-wave: "-1"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/sveatlo/cubie.git
+    targetRevision: HEAD
+    path: kubernetes/argocd
+    plugin:
+      name: kustomize-envsubst
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
