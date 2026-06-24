@@ -47,6 +47,10 @@ spec:
         repoURL: *repoURL
         targetRevision: *revision
         path: "{{ .path.path }}"
+        # Render via the kustomize-envsubst CMP sidecar (kubernetes/argocd/values.yaml):
+        # kustomize build --enable-helm, then substitute ${DOMAIN_0}/${DOMAIN_1}.
+        plugin:
+          name: kustomize-envsubst
       destination:
         server: https://kubernetes.default.svc
         # Each component's kustomization.yaml sets its own namespace
@@ -71,8 +75,11 @@ spec:
             - /spec/volumeClaimTemplates
       syncPolicy:
         automated:
-          prune: true
-          selfHeal: true
+          # TEMPORARY (CMP cutover, step 4): prune+selfHeal disabled so a bad/empty
+          # CMP render cannot cascade-delete workloads. Re-enabled once all apps are
+          # confirmed Synced through the plugin.
+          prune: false
+          selfHeal: false
         syncOptions:
           - CreateNamespace=true
           - ServerSideApply=true
