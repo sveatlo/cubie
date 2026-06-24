@@ -14,6 +14,9 @@ keys.txt
 # SOPS decrypted files (never commit plaintext secrets)
 *.sops.decrypted.*
 
+# Render-time vars: only the encrypted .yaml.sops is committed, never plaintext
+vars/*.yaml
+
 # Editor / OS
 .DS_Store
 *.swp

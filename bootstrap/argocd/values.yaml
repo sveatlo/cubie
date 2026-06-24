@@ -72,6 +72,55 @@ repoServer:
     - name: helm-secrets-private-keys
       secret:
         secretName: helm-secrets-private-keys
+    # CMP sidecar scratch + plugin config (see extraContainers / extraObjects below)
+    - name: cmp-tmp
+      emptyDir: {}
+    - name: cmp-plugin
+      configMap:
+        name: cmp-kustomize-envsubst
+  # kustomize-envsubst CMP: builds with helm, then substitutes ${DOMAIN_0}/${DOMAIN_1}
+  # from the SOPS-encrypted vars/domains.yaml.sops using the mounted age key.
+  extraContainers:
+    - name: cmp-kustomize-envsubst
+      image: quay.io/argoproj/argocd:v3.3.6 # keep in sync with chart appVersion (9.4.17 -> v3.3.6)
+      imagePullPolicy: IfNotPresent
+      command: ["/var/run/argocd/argocd-cmp-server"]
+      env:
+        - name: HOME
+          value: /tmp
+        - name: TMPDIR
+          value: /tmp
+        - name: HELM_CACHE_HOME
+          value: /tmp/helm/cache
+        - name: HELM_CONFIG_HOME
+          value: /tmp/helm/config
+        - name: HELM_DATA_HOME
+          value: /tmp/helm/data
+        - name: SOPS_AGE_KEY_FILE
+          value: /helm-secrets-private-keys/key.txt
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 999
+        allowPrivilegeEscalation: false
+        readOnlyRootFilesystem: true
+        capabilities:
+          drop: ["ALL"]
+        seccompProfile:
+          type: RuntimeDefault
+      volumeMounts:
+        - name: var-files
+          mountPath: /var/run/argocd
+        - name: plugins
+          mountPath: /home/argocd/cmp-server/plugins
+        - name: cmp-plugin
+          mountPath: /home/argocd/cmp-server/config/plugin.yaml
+          subPath: plugin.yaml
+        - name: cmp-tmp
+          mountPath: /tmp
+        - name: gitops-tools
+          mountPath: /gitops-tools
+        - name: helm-secrets-private-keys
+          mountPath: /helm-secrets-private-keys/
   volumeMounts:
     - mountPath: /gitops-tools
       name: gitops-tools
@@ -148,3 +197,49 @@ redis:
 
 redis-ha:
   enabled: false
+
+# ConfigManagementPlugin consumed by the cmp-kustomize-envsubst sidecar.
+# generate: kustomize build --enable-helm, then sed-substitute the domain
+# placeholders decrypted from vars/domains.yaml.sops. Keep the sed allowlist in
+# sync with hack/render.sh.
+extraObjects:
+  - apiVersion: v1
+    kind: ConfigMap
+    metadata:
+      name: cmp-kustomize-envsubst
+      namespace: argocd
+    data:
+      plugin.yaml: |
+        apiVersion: argoproj.io/v1alpha1
+        kind: ConfigManagementPlugin
+        metadata:
+          name: kustomize-envsubst
+        spec:
+          # No discover block: the plugin is only ever selected by explicit
+          # `source.plugin.name`. Auto-discovery would wrongly claim values-ref
+          # sources (e.g. a multi-source app's values path) that have no root
+          # kustomization.yaml and fail.
+          generate:
+            command:
+              - bash
+              - -c
+              - |
+                set -euo pipefail
+                root="$PWD"
+                while [ "$root" != "/" ] && [ ! -f "$root/vars/domains.yaml.sops" ]; do
+                  root="$(dirname "$root")"
+                done
+                set -a
+                eval "$(/gitops-tools/sops -d "$root/vars/domains.yaml.sops" \
+                  | sed -n -E 's/^([A-Za-z_][A-Za-z0-9_]*):[[:space:]]*(.*)$/\1=\2/p')"
+                set +a
+                # Build sed args from var NAMES so the literal ${DOMAIN_x} placeholder
+                # strings never appear in this script. That keeps it self-substitution
+                # safe when ArgoCD renders its own values (which embed this plugin)
+                # through this very CMP.
+                args=()
+                for v in DOMAIN_0 DOMAIN_1; do
+                  eval "val=\${$v:?missing $v}"
+                  args+=(-e "s|\${$v}|$val|g")
+                done
+                kustomize build --enable-helm . | sed "${args[@]}"
