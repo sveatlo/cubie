@@ -204,7 +204,7 @@ This installs ArgoCD via Helm and creates the `helm-secrets-private-keys` Secret
 ### 13. Apply the root ApplicationSet
 
 ```bash
-kubectl apply -f kubernetes/apps/applicationset.yaml
+kubectl apply -f kubernetes/argocd/applicationset.yaml
 ```
 
 ArgoCD will now auto-discover and sync all components in `kubernetes/infrastructure/`.

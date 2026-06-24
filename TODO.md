@@ -26,7 +26,7 @@ What was created
 - talos/scripts/ — gen-configs.sh (with --dry-run), apply-configs.sh
 - bootstrap/README.md — complete 14-step day-zero runbook
 - bootstrap/argocd/ — Helm values + install script (creates age key secret)
-- kubernetes/apps/applicationset.yaml — root ApplicationSet with git+matrix generator
+- kubernetes/argocd/applicationset.yaml — root ApplicationSet with git+matrix generator
 - kubernetes/infrastructure/ — MetalLB (wave 0), cert-manager (wave 0), Traefik (wave 1), NFS CSI (wave 2) — each with application.yaml, kustomization.yaml, values.yaml, config/
 - kubernetes/argocd/ — self-management Application (multi-source Helm)
 - CLAUDE.md — stack, layout, critical rules, workflows, node inventory table

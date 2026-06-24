@@ -79,7 +79,7 @@ Key details:
 - Helm charts are declared via Kustomize `helmCharts` field (not HelmRelease CRDs).
 - SOPS-encrypted secrets live in `config/` but are **not** referenced in `kustomization.yaml` — they must be manually decrypted and applied to the cluster.
 - Grafana dashboards use `configMapGenerator` with label `grafana_dashboard: "1"` for sidecar auto-discovery.
-- The root `ApplicationSet` (`kubernetes/apps/applicationset.yaml`) auto-discovers all directories and creates ArgoCD Applications. No manual Application registration needed.
+- The root `ApplicationSet` (`kubernetes/argocd/applicationset.yaml`) auto-discovers all directories and creates ArgoCD Applications. No manual Application registration needed.
 
 ## Critical Rules
 
