@@ -6,7 +6,7 @@ namespace: ai
 helmCharts:
   - name: ollama
     repo: https://otwld.github.io/ollama-helm
-    version: "1.67.0"
+    version: "1.68.0"
     releaseName: ollama
     namespace: ai
     valuesFile: ollama-values.yaml
