@@ -89,8 +89,9 @@ repoServer:
     - name: cmp-plugin
       configMap:
         name: cmp-kustomize-envsubst
-  # kustomize-envsubst CMP: builds with helm, then substitutes ${DOMAIN_0}/${DOMAIN_1}
-  # from the SOPS-encrypted vars/domains.yaml.sops using the mounted age key.
+  # kustomize-envsubst CMP: builds with helm, then substitutes the ${DOMAIN_x}
+  # vars from the SOPS-encrypted vars/domains.yaml.sops using the mounted age key.
+  # Any var missing from the loop below stays in the output as a literal.
   extraContainers:
     - name: cmp-kustomize-envsubst
       image: quay.io/argoproj/argocd:v3.4.5 # keep in sync with chart appVersion (9.4.17 -> v3.3.6)
@@ -249,7 +250,7 @@ extraObjects:
                 # safe when ArgoCD renders its own values (which embed this plugin)
                 # through this very CMP.
                 args=()
-                for v in DOMAIN_0 DOMAIN_1; do
+                for v in DOMAIN_0 DOMAIN_1 DOMAIN_2; do
                   eval "val=\${$v:?missing $v}"
                   args+=(-e "s|\${$v}|$val|g")
                 done

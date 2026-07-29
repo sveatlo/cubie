@@ -22,13 +22,14 @@ set -a
 eval "$(sops -d "$ROOT/vars/domains.yaml.sops" \
   | sed -n -E 's/^([A-Za-z_][A-Za-z0-9_]*):[[:space:]]*(.*)$/\1=\2/p')"
 set +a
-: "${DOMAIN_0:?domain vars not decrypted}" "${DOMAIN_1:?domain vars not decrypted}"
+: "${DOMAIN_0:?domain vars not decrypted}" "${DOMAIN_1:?domain vars not decrypted}" \
+  "${DOMAIN_2:?domain vars not decrypted}"
 
 # Build sed args from var NAMES so the literal ${DOMAIN_x} strings never appear here
 # (matches the CMP, which must stay self-substitution safe). Keep this allowlist in
 # sync with the CMP plugin in kubernetes/argocd/values.yaml.
 args=()
-for v in DOMAIN_0 DOMAIN_1; do
+for v in DOMAIN_0 DOMAIN_1 DOMAIN_2; do
   eval "val=\${$v:?missing $v}"
   args+=(-e "s|\${$v}|$val|g")
 done
