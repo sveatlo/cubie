@@ -1,0 +1,112 @@
+---
+# One instance holding all five service databases, each with its own owning
+# role, so the services stay credential-isolated without a pod apiece.
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: klerigo-db
+  namespace: klerigo
+spec:
+  instances: 1
+
+  postgresql:
+    parameters:
+      shared_buffers: "256MB"
+      effective_cache_size: "512MB"
+
+  storage:
+    size: 20Gi
+    storageClass: nfs
+
+  # No application database here: the five below are created as Database
+  # resources so none of them is privileged over the others.
+  bootstrap:
+    initdb:
+      database: klerigo
+      owner: klerigo
+      encoding: UTF8
+      localeCType: C
+      localeCollate: C
+
+  managed:
+    roles:
+      - name: identity
+        login: true
+        passwordSecret:
+          name: klerigo-db-identity
+      - name: courses
+        login: true
+        passwordSecret:
+          name: klerigo-db-courses
+      - name: vocabulary
+        login: true
+        passwordSecret:
+          name: klerigo-db-vocabulary
+      - name: notifications
+        login: true
+        passwordSecret:
+          name: klerigo-db-notifications
+      - name: calls
+        login: true
+        passwordSecret:
+          name: klerigo-db-calls
+
+  # Backup — uncomment when S3-compatible storage is available:
+  # backup:
+  #   barmanObjectStore:
+  #     destinationPath: "s3://backups/cnpg/klerigo-db"
+---
+apiVersion: postgresql.cnpg.io/v1
+kind: Database
+metadata:
+  name: klerigo-identity
+  namespace: klerigo
+spec:
+  name: identity
+  owner: identity
+  cluster:
+    name: klerigo-db
+---
+apiVersion: postgresql.cnpg.io/v1
+kind: Database
+metadata:
+  name: klerigo-courses
+  namespace: klerigo
+spec:
+  name: courses
+  owner: courses
+  cluster:
+    name: klerigo-db
+---
+apiVersion: postgresql.cnpg.io/v1
+kind: Database
+metadata:
+  name: klerigo-vocabulary
+  namespace: klerigo
+spec:
+  name: vocabulary
+  owner: vocabulary
+  cluster:
+    name: klerigo-db
+---
+apiVersion: postgresql.cnpg.io/v1
+kind: Database
+metadata:
+  name: klerigo-notifications
+  namespace: klerigo
+spec:
+  name: notifications
+  owner: notifications
+  cluster:
+    name: klerigo-db
+---
+apiVersion: postgresql.cnpg.io/v1
+kind: Database
+metadata:
+  name: klerigo-calls
+  namespace: klerigo
+spec:
+  name: calls
+  owner: calls
+  cluster:
+    name: klerigo-db

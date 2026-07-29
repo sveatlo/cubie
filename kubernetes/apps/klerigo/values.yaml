@@ -1,0 +1,23 @@
+---
+domain: ${DOMAIN_2}
+
+storage:
+  # Presigned URLs are signed for the host the browser uses, so this must be
+  # the public name, not the in-cluster service.
+  publicEndpoint: https://media.${DOMAIN_2}
+  internalEndpoint: http://klerigo-garage:3900
+
+ingress:
+  className: traefik
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    traefik.ingress.kubernetes.io/router.tls: "true"
+  middlewares:
+    - traefik-lan-only@kubernetescrd
+
+resources:
+  requests:
+    cpu: 25m
+    memory: 64Mi
+  limits:
+    memory: 512Mi

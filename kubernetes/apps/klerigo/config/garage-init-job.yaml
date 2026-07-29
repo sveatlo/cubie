@@ -1,0 +1,120 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: klerigo-garage-init
+  namespace: klerigo
+data:
+  init.sh: |
+    #!/bin/sh
+    # Idempotent throughout, so re-running on every sync is harmless.
+    set -eu
+
+    api() {
+      method=$1; path=$2; data=${3:-}
+      if [ -n "$data" ]; then
+        curl -sS -X "$method" -H "Authorization: Bearer $GARAGE_ADMIN_TOKEN" \
+          -H "Content-Type: application/json" -d "$data" "$GARAGE_ADMIN_ENDPOINT$path"
+      else
+        curl -sS -X "$method" -H "Authorization: Bearer $GARAGE_ADMIN_TOKEN" "$GARAGE_ADMIN_ENDPOINT$path"
+      fi
+    }
+
+    # A fresh node has no layout. layoutVersion stays 0 until applied, so a
+    # re-run is a no-op.
+    status=$(api GET /v1/status)
+    if [ "$(echo "$status" | jq -r '.layoutVersion')" = "0" ]; then
+      node=$(echo "$status" | jq -r '.node')
+      api POST /v1/layout "[{\"id\":\"$node\",\"zone\":\"dc1\",\"capacity\":21474836480,\"tags\":[]}]" >/dev/null
+      api POST /v1/layout/apply '{"version":1}' >/dev/null
+      echo "garage-init: applied storage layout for node $node"
+    fi
+
+    bucket_id=$(api GET "/v1/bucket?globalAlias=$GARAGE_BUCKET" | jq -r '.id // empty')
+    if [ -z "$bucket_id" ]; then
+      bucket_id=$(api POST /v1/bucket "{\"globalAlias\":\"$GARAGE_BUCKET\"}" | jq -r '.id')
+      echo "garage-init: created bucket $GARAGE_BUCKET"
+    fi
+
+    # Imported rather than created, so the pair stays equal to the STORAGE_*
+    # values courses signs with.
+    if ! api GET "/v1/key?id=$GARAGE_ACCESS_KEY_ID" | jq -e '.accessKeyId' >/dev/null 2>&1; then
+      api POST /v1/key/import \
+        "{\"accessKeyId\":\"$GARAGE_ACCESS_KEY_ID\",\"secretAccessKey\":\"$GARAGE_SECRET_ACCESS_KEY\",\"name\":\"klerigo\"}" >/dev/null
+      echo "garage-init: imported access key"
+    fi
+
+    api POST /v1/bucket/allow \
+      "{\"bucketId\":\"$bucket_id\",\"accessKeyId\":\"$GARAGE_ACCESS_KEY_ID\",\"permissions\":{\"read\":true,\"write\":true,\"owner\":true}}" >/dev/null
+
+    # Every tenant is a distinct browser origin, so the wildcard is required.
+    # Without it uploads fail CORS from each tenant host and read as auth errors.
+    AWS_ACCESS_KEY_ID="$GARAGE_ACCESS_KEY_ID" AWS_SECRET_ACCESS_KEY="$GARAGE_SECRET_ACCESS_KEY" \
+    AWS_DEFAULT_REGION=garage AWS_EC2_METADATA_DISABLED=true \
+      aws --endpoint-url "$GARAGE_S3_ENDPOINT" s3api put-bucket-cors --bucket "$GARAGE_BUCKET" \
+      --cors-configuration "{\"CORSRules\":[{\"AllowedOrigins\":[\"$WEB_ORIGIN\",\"$WEB_ORIGIN_WILDCARD\"],\"AllowedMethods\":[\"GET\",\"PUT\"],\"AllowedHeaders\":[\"*\"],\"MaxAgeSeconds\":3000}]}" >/dev/null
+
+    echo "garage-init: bootstrap complete"
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: klerigo-garage-init
+  namespace: klerigo
+  annotations:
+    argocd.argoproj.io/hook: PostSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+spec:
+  backoffLimit: 20
+  template:
+    spec:
+      restartPolicy: OnFailure
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      volumes:
+        - name: init
+          configMap:
+            name: klerigo-garage-init
+            defaultMode: 0755
+      containers:
+        - name: init
+          image: alpine:3.20
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+          command: ["/bin/sh", "-c"]
+          args:
+            - apk add --no-cache aws-cli curl jq >/dev/null && exec /init/init.sh
+          volumeMounts:
+            - name: init
+              mountPath: /init
+          env:
+            - name: GARAGE_ADMIN_ENDPOINT
+              value: http://klerigo-garage:3903
+            - name: GARAGE_S3_ENDPOINT
+              value: http://klerigo-garage:3900
+            - name: GARAGE_BUCKET
+              value: klerigo-media
+            - name: WEB_ORIGIN
+              value: https://${DOMAIN_2}
+            - name: WEB_ORIGIN_WILDCARD
+              value: https://*.${DOMAIN_2}
+            - name: GARAGE_ADMIN_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: klerigo-garage
+                  key: admin-token
+            - name: GARAGE_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: klerigo-storage
+                  key: access-key-id
+            - name: GARAGE_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: klerigo-storage
+                  key: secret-access-key

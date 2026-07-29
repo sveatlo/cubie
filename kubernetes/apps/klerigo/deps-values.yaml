@@ -1,0 +1,270 @@
+---
+# Kafka, Redis, Garage and LiveKit. Images match the ones the dev compose stack
+# runs, so behaviour does not diverge between local and cluster.
+
+controllers:
+  # Single-broker KRaft, replication factor 1 everywhere.
+  kafka:
+    type: statefulset
+    statefulset:
+      volumeClaimTemplates:
+        - name: data
+          size: 10Gi
+          storageClass: nfs
+          accessMode: ReadWriteOnce
+          globalMounts:
+            - path: /var/lib/kafka/data
+    containers:
+      app:
+        image:
+          repository: apache/kafka
+          tag: "3.9.1"
+          pullPolicy: IfNotPresent
+        env:
+          KAFKA_NODE_ID: "1"
+          KAFKA_PROCESS_ROLES: broker,controller
+          KAFKA_CONTROLLER_QUORUM_VOTERS: 1@klerigo-kafka:9093
+          KAFKA_LISTENERS: INTERNAL://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093
+          KAFKA_ADVERTISED_LISTENERS: INTERNAL://klerigo-kafka:9092
+          KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INTERNAL:PLAINTEXT,CONTROLLER:PLAINTEXT
+          KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+          KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
+          KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: "1"
+          KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: "1"
+          KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: "1"
+          KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: "0"
+          KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"
+          KAFKA_LOG_DIRS: /var/lib/kafka/data
+        # runAsUser is left to the image. Forcing one here would change the
+        # ownership the NFS-backed volume is written with.
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop: ["ALL"]
+        probes:
+          liveness: { enabled: true, type: TCP }
+          readiness: { enabled: true, type: TCP }
+
+  # Cache in front of calls' Postgres, plus the gateway's pub/sub relay. No
+  # persistence: nothing here is a system of record.
+  redis:
+    containers:
+      app:
+        image:
+          repository: docker.io/library/redis
+          tag: "7-alpine"
+          pullPolicy: IfNotPresent
+        securityContext:
+          runAsNonRoot: true
+          runAsUser: 1000
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop: ["ALL"]
+          seccompProfile:
+            type: RuntimeDefault
+        probes:
+          liveness: { enabled: true, type: TCP }
+          readiness: { enabled: true, type: TCP }
+
+  garage:
+    type: statefulset
+    statefulset:
+      volumeClaimTemplates:
+        - name: meta
+          size: 2Gi
+          storageClass: nfs
+          accessMode: ReadWriteOnce
+          globalMounts:
+            - path: /var/lib/garage/meta
+        - name: data
+          size: 20Gi
+          storageClass: nfs
+          accessMode: ReadWriteOnce
+          globalMounts:
+            - path: /var/lib/garage/data
+    containers:
+      app:
+        image:
+          repository: dxflrs/garage
+          tag: "v1.0.1"
+          pullPolicy: IfNotPresent
+        command: ["/garage"]
+        args: ["-c", "/etc/garage/garage.toml", "server"]
+        # Kept out of the ConfigMap, which is world-readable in the repo.
+        env:
+          GARAGE_RPC_SECRET:
+            valueFrom:
+              secretKeyRef:
+                name: klerigo-garage
+                key: rpc-secret
+          GARAGE_ADMIN_TOKEN:
+            valueFrom:
+              secretKeyRef:
+                name: klerigo-garage
+                key: admin-token
+        # runAsUser is left to the image. Forcing one here would change the
+        # ownership the NFS-backed volumes are written with.
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop: ["ALL"]
+        probes:
+          liveness: { enabled: true, type: TCP }
+          readiness: { enabled: true, type: TCP }
+
+  livekit:
+    containers:
+      app:
+        image:
+          repository: livekit/livekit-server
+          tag: "v1.13.4"
+          pullPolicy: IfNotPresent
+        args: ["--config", "/etc/livekit.yaml"]
+        env:
+          LIVEKIT_KEYS:
+            valueFrom:
+              secretKeyRef:
+                name: klerigo-livekit
+                key: keys
+        securityContext:
+          runAsNonRoot: true
+          runAsUser: 1000
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop: ["ALL"]
+          seccompProfile:
+            type: RuntimeDefault
+        probes:
+          liveness: { enabled: true, type: TCP }
+          readiness: { enabled: true, type: TCP }
+
+configMaps:
+  garage:
+    enabled: true
+    data:
+      garage.toml: |
+        metadata_dir = "/var/lib/garage/meta"
+        data_dir = "/var/lib/garage/data"
+        db_engine = "sqlite"
+        replication_factor = 1
+
+        rpc_bind_addr = "[::]:3901"
+        rpc_public_addr = "klerigo-garage:3901"
+
+        [s3_api]
+        s3_region = "garage"
+        api_bind_addr = "[::]:3900"
+        root_domain = ".s3.garage.internal"
+
+        [admin]
+        api_bind_addr = "[::]:3903"
+  livekit:
+    enabled: true
+    data:
+      livekit.yaml: |
+        port: 7880
+        rtc:
+          tcp_port: 7881
+          # A Service can only reasonably expose one port, so media is muxed
+          # onto a single one. node_ip must be the address clients reach.
+          udp_port: 7882
+          use_external_ip: false
+          node_ip: 10.69.11.43
+        room:
+          empty_timeout: 30
+        webhook:
+          api_key: devkey
+          urls:
+            - http://klerigo-calls:50057/webhooks/livekit
+
+persistence:
+  garage-config:
+    type: configMap
+    identifier: garage
+    advancedMounts:
+      garage:
+        app:
+          - path: /etc/garage/garage.toml
+            subPath: garage.toml
+            readOnly: true
+  livekit-config:
+    type: configMap
+    identifier: livekit
+    advancedMounts:
+      livekit:
+        app:
+          - path: /etc/livekit.yaml
+            subPath: livekit.yaml
+            readOnly: true
+
+service:
+  kafka:
+    controller: kafka
+    ports:
+      kafka:
+        port: 9092
+      controller:
+        port: 9093
+  redis:
+    controller: redis
+    ports:
+      redis:
+        port: 6379
+  garage:
+    controller: garage
+    ports:
+      s3:
+        port: 3900
+      rpc:
+        port: 3901
+      admin:
+        port: 3903
+  livekit:
+    controller: livekit
+    ports:
+      http:
+        port: 7880
+      rtc-tcp:
+        port: 7881
+  # Media needs its own LoadBalancer because Traefik defines no UDP entrypoint.
+  livekit-rtc:
+    controller: livekit
+    type: LoadBalancer
+    annotations:
+      metallb.universe.tf/loadBalancerIPs: "10.69.11.43"
+    ports:
+      rtc-udp:
+        port: 7882
+        protocol: UDP
+
+ingress:
+  livekit:
+    enabled: true
+    className: traefik
+    annotations:
+      traefik.ingress.kubernetes.io/router.entrypoints: websecure
+      traefik.ingress.kubernetes.io/router.tls: "true"
+      traefik.ingress.kubernetes.io/router.middlewares: traefik-lan-only@kubernetescrd
+    hosts:
+      - host: calls.${DOMAIN_2}
+        paths:
+          - path: /
+            pathType: Prefix
+            service:
+              identifier: livekit
+              port: http
+  garage:
+    enabled: true
+    className: traefik
+    annotations:
+      traefik.ingress.kubernetes.io/router.entrypoints: websecure
+      traefik.ingress.kubernetes.io/router.tls: "true"
+      traefik.ingress.kubernetes.io/router.middlewares: traefik-lan-only@kubernetescrd
+    hosts:
+      - host: media.${DOMAIN_2}
+        paths:
+          - path: /
+            pathType: Prefix
+            service:
+              identifier: garage
+              port: s3
