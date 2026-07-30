@@ -5,28 +5,28 @@ Encrypted with SOPS and committed here, but **not** listed in
 
 ## ghcr credentials (two, in different namespaces)
 
-The chart and images are private, and they are fetched by two different things
-that authenticate separately. Both need a **classic** PAT with `read:packages`;
-fine-grained tokens cannot read GitHub Packages.
+The chart and the images are private and are fetched by two different things
+that authenticate separately: the repo-server renders the chart with helm, the
+kubelet pulls the images. Fixing only one leaves the other failing.
 
-The repo-server renders the chart, so it needs the credential in `argocd`:
+Both ship with `REPLACE_ME` and need a **classic** PAT with `read:packages`.
+Fine-grained tokens cannot read GitHub Packages.
 
 ```sh
-kubectl -n argocd create secret generic ghcr-registry-config \
-  --from-file=config.json=<(printf '{"auths":{"ghcr.io":{"auth":"%s"}}}' \
-    "$(printf '%s:%s' "$GH_USER" "$GH_TOKEN" | base64 -w0)")
+hack/edit-secret.sh kubernetes/argocd/config/ghcr-registry-config.yaml.sops
+hack/edit-secret.sh kubernetes/apps/klerigo/config/ghcr-pull.yaml.sops
+```
+
+Put the GitHub username and the token in as `username` and `password`. Then
+apply both, and restart the repo-server so the sidecar rereads its mount:
+
+```sh
+hack/apply-secret.sh kubernetes/argocd/config/ghcr-registry-config.yaml.sops
+hack/apply-secret.sh kubernetes/apps/klerigo/config/ghcr-pull.yaml.sops
 kubectl -n argocd rollout restart deploy/argocd-repo-server
 ```
 
-The kubelet pulls the images, so it needs its own in `klerigo`:
-
-```sh
-kubectl -n klerigo create secret docker-registry ghcr-pull \
-  --docker-server=ghcr.io --docker-username="$GH_USER" --docker-password="$GH_TOKEN"
-```
-
-Neither is committed here: the token is personal and rotates on its own
-schedule. The repo-server mount is `optional`, so a missing one degrades to
+The repo-server mount is `optional`, so an expired token degrades to
 private-chart apps failing to render rather than every app going down.
 
 ## The rest
