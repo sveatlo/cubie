@@ -20,3 +20,12 @@ spec:
             secretAccessKeySecretRef:
               name: route53-credentials
               key: secret-access-key
+      - selector:
+          dnsZones:
+            - "${DOMAIN_2}"
+            - "${DOMAIN_3}"
+        dns01:
+          cloudflare:
+            apiTokenSecretRef:
+              name: cloudflare-api-token
+              key: api-token
