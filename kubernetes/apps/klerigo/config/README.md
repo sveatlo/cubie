@@ -1,80 +1,55 @@
 # klerigo secrets
 
-These are applied by hand and deliberately kept out of git, so ArgoCD never
-manages them. Nothing here is created by a sync; a fresh cluster needs all of
-them present before the pods will start. This file is the only record that they
-exist.
+Encrypted with SOPS and committed here, but **not** listed in
+`kustomization.yaml`, so ArgoCD never manages them. Apply them by hand:
 
-Create them in the `klerigo` namespace.
+```sh
+hack/apply-secret.sh kubernetes/apps/klerigo/config/klerigo-db.yaml.sops
+hack/apply-secret.sh kubernetes/apps/klerigo/config/klerigo-app.yaml.sops
+hack/apply-secret.sh kubernetes/apps/klerigo/config/klerigo-smtp.yaml.sops
+```
 
-## Database credentials (five)
+The namespace must exist first (`kubectl create namespace klerigo`), or ArgoCD
+must have created it.
 
-CNPG requires `kubernetes.io/basic-auth` with both `username` and `password`.
-The `database-url` key is extra, and is what the service itself reads: CNPG
-generates no connection URI for managed roles, only for `bootstrap.initdb`
-owners. The password inside the URL and the `password` key must agree. Nothing
+Edit any of them with `hack/edit-secret.sh <file>`.
+
+## klerigo-db.yaml.sops
+
+Five `kubernetes.io/basic-auth` secrets, one per service database. CNPG needs
+`username` and `password` to create the managed role; the service reads
+`database-url`, because CNPG generates a connection URI only for
+`bootstrap.initdb` owners, never for managed roles.
+
+The password therefore appears twice, and the two copies must agree. Nothing
 validates that they do, and a mismatch surfaces as an auth failure at pod
-startup rather than as a config error.
+startup rather than as a config error. If you rotate one by hand, rotate both.
+
+## klerigo-app.yaml.sops
+
+`klerigo-jwt` is shared by the gateway and identity: identity signs, the gateway
+verifies, so a mismatch fails every login.
+
+`klerigo-livekit` splits one key pair across three values because the LiveKit
+server and `services/calls` read different shapes. `keys` is
+`<api-key>: <api-secret>`, and `deps-values.yaml` names that same api-key under
+`webhook.api_key` so LiveKit signs webhooks with a key it actually holds.
+
+`klerigo-storage` is the source of truth for the Garage credentials: the init
+Job imports these rather than generating its own, so `courses` signs URLs with
+a key that exists. `klerigo-garage` holds Garage's own RPC secret and admin
+token, kept out of the ConfigMap that carries the rest of its config.
+
+## klerigo-smtp.yaml.sops
+
+**Ships with `REPLACE_ME` placeholders.** Fill in a real provider before
+expecting mail to work:
 
 ```sh
-for db in identity courses vocabulary notifications calls; do
-  pw=$(openssl rand -hex 24)
-  kubectl -n klerigo create secret generic "klerigo-db-$db" \
-    --type=kubernetes.io/basic-auth \
-    --from-literal=username="$db" \
-    --from-literal=password="$pw" \
-    --from-literal=database-url="postgres://$db:$pw@klerigo-db-rw:5432/$db"
-done
+hack/edit-secret.sh kubernetes/apps/klerigo/config/klerigo-smtp.yaml.sops
 ```
 
-## Application secrets
-
-`JWT_SECRET` is shared by the gateway and identity: the gateway verifies what
-identity signs, so the two must match exactly.
-
-```sh
-kubectl -n klerigo create secret generic klerigo-jwt \
-  --from-literal=jwt-secret="$(openssl rand -hex 32)"
-```
-
-LiveKit reads `keys` as `<api-key>: <secret>`, while calls takes the two halves
-separately. All three values have to describe the same pair.
-
-```sh
-LK_KEY=klerigo
-LK_SECRET=$(openssl rand -hex 32)
-kubectl -n klerigo create secret generic klerigo-livekit \
-  --from-literal=api-key="$LK_KEY" \
-  --from-literal=api-secret="$LK_SECRET" \
-  --from-literal=keys="$LK_KEY: $LK_SECRET"
-```
-
-The storage key is imported into Garage by the init Job rather than generated
-by it, so these values are the source of truth. The access key id must be 26
-characters starting with `GK`.
-
-```sh
-kubectl -n klerigo create secret generic klerigo-storage \
-  --from-literal=access-key-id="GK$(openssl rand -hex 12)" \
-  --from-literal=secret-access-key="$(openssl rand -hex 32)"
-
-kubectl -n klerigo create secret generic klerigo-garage \
-  --from-literal=rpc-secret="$(openssl rand -hex 32)" \
-  --from-literal=admin-token="$(openssl rand -hex 32)"
-```
-
-## SMTP
-
-Configured against a real provider; there is no in-cluster mail sink. `port` is
-consumed as a string. `username` and `password` must both be present: together
-they switch the mailer to authenticated STARTTLS, and notifications refuses to
-start with only one of them rather than quietly sending unauthenticated.
-
-```sh
-kubectl -n klerigo create secret generic klerigo-smtp \
-  --from-literal=host=... \
-  --from-literal=port=587 \
-  --from-literal=username=... \
-  --from-literal=password=... \
-  --from-literal=from=no-reply@klerigo.com
-```
+`port` is consumed as a string. `username` and `password` must both be present:
+together they switch the mailer to authenticated STARTTLS, and notifications
+refuses to start with only one of them rather than quietly sending
+unauthenticated.
