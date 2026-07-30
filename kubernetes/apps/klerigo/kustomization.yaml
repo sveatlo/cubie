@@ -1,17 +1,15 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 namespace: klerigo
-
 helmCharts:
   # Application workloads. Chart and images are published together by klerigo's
   # CI, which also writes the version below.
   - name: klerigo
     repo: oci://ghcr.io/klerigo-app
-    version: "0.1.0-0000000"
+    version: "0.1.0-c398043"
     releaseName: klerigo
     namespace: klerigo
     valuesFile: values.yaml
-
   # Stateful dependencies. Same release name so the generated service names are
   # the ones the application chart is configured to reach.
   - name: app-template
@@ -20,7 +18,6 @@ helmCharts:
     releaseName: klerigo
     namespace: klerigo
     valuesFile: deps-values.yaml
-
 resources:
   - config/cnpg-cluster.yaml
   - config/kafka-topics-job.yaml
