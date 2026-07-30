@@ -39,6 +39,12 @@ jobs:
       - name: Install kustomize
         uses: imranismail/setup-kustomize@v3
 
+      - name: Log in to ghcr.io
+        env:
+          GHCR_USERNAME: ${{ secrets.GHCR_USERNAME }}
+          GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
+        run: echo "$GHCR_TOKEN" | helm registry login ghcr.io -u "$GHCR_USERNAME" --password-stdin
+
       - name: Build ${{ matrix.chart }}
         env:
           CHART: ${{ matrix.chart }}
