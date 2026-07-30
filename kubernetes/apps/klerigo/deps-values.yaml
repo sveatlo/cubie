@@ -2,6 +2,14 @@
 # Kafka, Redis, Garage and LiveKit. Images match the ones the dev compose stack
 # runs, so behaviour does not diverge between local and cluster.
 
+# NFS volumes arrive owned by root, so a container running as a non-root uid
+# cannot write to them until the group is fixed up. OnRootMismatch keeps that
+# to first mount rather than every restart.
+defaultPodOptions:
+  securityContext:
+    fsGroup: 1000
+    fsGroupChangePolicy: OnRootMismatch
+
 controllers:
   # Single-broker KRaft, replication factor 1 everywhere.
   kafka:
