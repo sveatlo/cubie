@@ -1,6 +1,10 @@
 ---
 domain: ${DOMAIN_2}
 
+# Images are private, and the kubelet authenticates separately from the chart pull.
+imagePullSecrets:
+  - name: ghcr-pull
+
 storage:
   # Presigned URLs are signed for the host the browser uses, so this must be
   # the public name, not the in-cluster service.

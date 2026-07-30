@@ -173,9 +173,8 @@ configMaps:
         room:
           empty_timeout: 30
         webhook:
-          # Must name a key present in LIVEKIT_KEYS, which the secret supplies
-          # as "klerigo: <secret>". Signing under an absent key silently breaks
-          # webhook delivery, so calls never learn a room drained.
+          # Must name a key present in LIVEKIT_KEYS. Signing under an absent
+          # key breaks webhook delivery silently.
           api_key: klerigo
           urls:
             - http://klerigo-calls:50057/webhooks/livekit
@@ -248,9 +247,8 @@ ingress:
       traefik.ingress.kubernetes.io/router.entrypoints: websecure
       traefik.ingress.kubernetes.io/router.tls: "true"
       traefik.ingress.kubernetes.io/router.middlewares: traefik-lan-only@kubernetescrd
-      # Traefik derives priority from rule length by default, and the app's
-      # *.<domain> rule is the longer string, so it would otherwise win this
-      # host and serve the SPA instead of LiveKit.
+      # Traefik ranks by rule length, and the app's *.<domain> rule is longer,
+      # so without this it wins this host and serves the SPA.
       traefik.ingress.kubernetes.io/router.priority: "1000"
     hosts:
       - host: calls.${DOMAIN_2}

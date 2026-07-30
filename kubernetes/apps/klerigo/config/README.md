@@ -3,6 +3,34 @@
 Encrypted with SOPS and committed here, but **not** listed in
 `kustomization.yaml`, so ArgoCD never manages them. Apply them by hand:
 
+## ghcr credentials (two, in different namespaces)
+
+The chart and images are private, and they are fetched by two different things
+that authenticate separately. Both need a **classic** PAT with `read:packages`;
+fine-grained tokens cannot read GitHub Packages.
+
+The repo-server renders the chart, so it needs the credential in `argocd`:
+
+```sh
+kubectl -n argocd create secret generic ghcr-registry-config \
+  --from-file=config.json=<(printf '{"auths":{"ghcr.io":{"auth":"%s"}}}' \
+    "$(printf '%s:%s' "$GH_USER" "$GH_TOKEN" | base64 -w0)")
+kubectl -n argocd rollout restart deploy/argocd-repo-server
+```
+
+The kubelet pulls the images, so it needs its own in `klerigo`:
+
+```sh
+kubectl -n klerigo create secret docker-registry ghcr-pull \
+  --docker-server=ghcr.io --docker-username="$GH_USER" --docker-password="$GH_TOKEN"
+```
+
+Neither is committed here: the token is personal and rotates on its own
+schedule. The repo-server mount is `optional`, so a missing one degrades to
+private-chart apps failing to render rather than every app going down.
+
+## The rest
+
 ```sh
 hack/apply-secret.sh kubernetes/apps/klerigo/config/klerigo-db.yaml.sops
 hack/apply-secret.sh kubernetes/apps/klerigo/config/klerigo-app.yaml.sops
