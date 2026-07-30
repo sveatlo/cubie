@@ -28,6 +28,11 @@ jobs:
     name: Helm schema validation
     needs: discover
     runs-on: ubuntu-latest
+    env:
+      # kustomize's --enable-helm isolates HELM_CONFIG_HOME per build, so the
+      # login below would otherwise be invisible to it.
+      # HELM_REGISTRY_CONFIG is left untouched, so pinning it here bridges the two.
+      HELM_REGISTRY_CONFIG: ${{ runner.temp }}/helm-registry-config.json
     strategy:
       matrix:
         chart: ${{ fromJson(needs.discover.outputs.charts) }}
