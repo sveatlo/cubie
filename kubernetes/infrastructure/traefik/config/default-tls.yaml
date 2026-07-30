@@ -1,6 +1,6 @@
 ---
-# Traefik TLSStore — sets the default TLS certificate to the wildcard cert.
-# Any IngressRoute or Ingress that doesn't specify a cert will use this.
+# Traefik TLSStore — registers one certificate per domain; Traefik selects the
+# matching one by SNI. defaultCertificate is only used when nothing matches.
 apiVersion: traefik.io/v1alpha1
 kind: TLSStore
 metadata:
@@ -10,4 +10,9 @@ metadata:
     argocd.argoproj.io/sync-wave: "1"
 spec:
   defaultCertificate:
-    secretName: wildcard-tls
+    secretName: wildcard-tls-domain-0
+  certificates:
+    - secretName: wildcard-tls-domain-0
+    - secretName: wildcard-tls-domain-1
+    - secretName: wildcard-tls-domain-2
+    - secretName: wildcard-tls-domain-3

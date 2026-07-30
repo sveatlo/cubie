@@ -14,6 +14,10 @@ helmCharts:
 
 resources:
   - config/wildcard-cert.yaml
+  - config/wildcard-cert-domain-0.yaml
+  - config/wildcard-cert-domain-1.yaml
+  - config/wildcard-cert-domain-2.yaml
+  - config/wildcard-cert-domain-3.yaml
   - config/default-tls.yaml
   - config/tls-option.yaml
   - config/middleware-lan-only.yaml

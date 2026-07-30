@@ -78,7 +78,7 @@ repoServer:
     - name: cmp-plugin
       configMap:
         name: cmp-kustomize-envsubst
-  # kustomize-envsubst CMP: builds with helm, then substitutes ${DOMAIN_0}/${DOMAIN_1}
+  # kustomize-envsubst CMP: builds with helm, then substitutes ${DOMAIN_0}..${DOMAIN_3}
   # from the SOPS-encrypted vars/domains.yaml.sops using the mounted age key.
   extraContainers:
     - name: cmp-kustomize-envsubst
@@ -238,7 +238,7 @@ extraObjects:
                 # safe when ArgoCD renders its own values (which embed this plugin)
                 # through this very CMP.
                 args=()
-                for v in DOMAIN_0 DOMAIN_1; do
+                for v in DOMAIN_0 DOMAIN_1 DOMAIN_2 DOMAIN_3; do
                   eval "val=\${$v:?missing $v}"
                   args+=(-e "s|\${$v}|$val|g")
                 done

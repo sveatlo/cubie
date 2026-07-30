@@ -1,0 +1,19 @@
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: wildcard-cert-domain-2
+  namespace: traefik
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  secretName: wildcard-tls-domain-2
+  issuerRef:
+    name: letsencrypt-prod
+    kind: ClusterIssuer
+  dnsNames:
+    - "${DOMAIN_2}"
+    # One label only, which is what tenant subdomains use.
+    - "*.${DOMAIN_2}"
+  duration: 2160h # 90 days
+  renewBefore: 360h # renew 15 days before expiry
