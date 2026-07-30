@@ -29,10 +29,11 @@ jobs:
     needs: discover
     runs-on: ubuntu-latest
     env:
-      # kustomize's --enable-helm isolates HELM_CONFIG_HOME per build, so the
-      # login below would otherwise be invisible to it.
-      # HELM_REGISTRY_CONFIG is left untouched, so pinning it here bridges the two.
-      HELM_REGISTRY_CONFIG: ${{ runner.temp }}/helm-registry-config.json
+      # kustomize's --enable-helm isolates HELM_CONFIG_HOME per build,
+      # making a prior helm registry login invisible to the subprocess.
+      # HELM_REGISTRY_CONFIG isn't part of that isolation, so pinning it
+      # here is what makes the login reach helm.
+      HELM_REGISTRY_CONFIG: /tmp/helm-registry-config.json
     strategy:
       matrix:
         chart: ${{ fromJson(needs.discover.outputs.charts) }}
