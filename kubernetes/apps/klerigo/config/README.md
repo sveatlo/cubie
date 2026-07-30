@@ -66,11 +66,15 @@ kubectl -n klerigo create secret generic klerigo-garage \
 ## SMTP
 
 Configured against a real provider; there is no in-cluster mail sink. `port` is
-consumed as a string.
+consumed as a string. `username` and `password` must both be present: together
+they switch the mailer to authenticated STARTTLS, and notifications refuses to
+start with only one of them rather than quietly sending unauthenticated.
 
 ```sh
 kubectl -n klerigo create secret generic klerigo-smtp \
   --from-literal=host=... \
   --from-literal=port=587 \
+  --from-literal=username=... \
+  --from-literal=password=... \
   --from-literal=from=no-reply@klerigo.com
 ```
