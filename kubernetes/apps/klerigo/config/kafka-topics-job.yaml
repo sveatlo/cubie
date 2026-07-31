@@ -1,13 +1,18 @@
 ---
 # Auto-create is off, and notifications subscribes at startup: a missing topic
 # is a fatal UnknownTopicOrPartition, not a retry. One line per consumed domain.
+#
+# Must run PreSync, not PostSync. notifications' own health depends on these
+# topics existing, and ArgoCD won't run PostSync hooks until the app is
+# healthy, so PostSync here deadlocks: the hook that unblocks notifications
+# never fires because notifications isn't healthy yet.
 apiVersion: batch/v1
 kind: Job
 metadata:
   name: klerigo-kafka-topics
   namespace: klerigo
   annotations:
-    argocd.argoproj.io/hook: PostSync
+    argocd.argoproj.io/hook: PreSync
     argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
 spec:
   backoffLimit: 20
