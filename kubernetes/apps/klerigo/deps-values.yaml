@@ -12,8 +12,12 @@ defaultPodOptions:
 
 controllers:
   # Single-broker KRaft, replication factor 1 everywhere.
+  # Synced before the topics job (wave -1) and the app deployments (wave 0,
+  # the default), since both need a reachable broker.
   kafka:
     type: statefulset
+    annotations:
+      argocd.argoproj.io/sync-wave: "-2"
     statefulset:
       volumeClaimTemplates:
         - name: data
