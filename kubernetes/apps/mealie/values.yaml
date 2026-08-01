@@ -10,6 +10,7 @@ controllers:
         env:
           TZ: UTC
           DB_ENGINE: postgres
+          OIDC_REQUIRES_EMAIL_VERIFICATION: "false"
           BASE_URL: https://recipes.${DOMAIN_0}
           POSTGRES_USER: mealie
           POSTGRES_SERVER: mealie-db-rw
