@@ -16,8 +16,8 @@ ingress:
   annotations:
     traefik.ingress.kubernetes.io/router.entrypoints: websecure
     traefik.ingress.kubernetes.io/router.tls: "true"
-  middlewares:
-    - traefik-lan-only@kubernetescrd
+  # Empty overrides the chart default of lan-only.
+  middlewares: []
 
 resources:
   requests:

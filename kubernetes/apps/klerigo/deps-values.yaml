@@ -258,7 +258,6 @@ ingress:
     annotations:
       traefik.ingress.kubernetes.io/router.entrypoints: websecure
       traefik.ingress.kubernetes.io/router.tls: "true"
-      traefik.ingress.kubernetes.io/router.middlewares: traefik-lan-only@kubernetescrd
       # Traefik ranks by rule length, and the app's *.<domain> rule is longer,
       # so without this it wins this host and serves the SPA.
       traefik.ingress.kubernetes.io/router.priority: "1000"
@@ -276,7 +275,6 @@ ingress:
     annotations:
       traefik.ingress.kubernetes.io/router.entrypoints: websecure
       traefik.ingress.kubernetes.io/router.tls: "true"
-      traefik.ingress.kubernetes.io/router.middlewares: traefik-lan-only@kubernetescrd
       traefik.ingress.kubernetes.io/router.priority: "1000"
     hosts:
       - host: media.${DOMAIN_2}
