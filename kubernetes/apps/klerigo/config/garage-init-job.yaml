@@ -81,14 +81,16 @@ spec:
             defaultMode: 0755
       containers:
         - name: init
-          image: alpine:3.20
+          # Ships aws, curl and jq, so nothing is installed at runtime. Alpine
+          # plus apk needs root, which the restricted pod security policy denies.
+          image: public.ecr.aws/aws-cli/aws-cli:2.36.15
           securityContext:
             allowPrivilegeEscalation: false
             capabilities:
               drop: ["ALL"]
           command: ["/bin/sh", "-c"]
           args:
-            - apk add --no-cache aws-cli curl jq >/dev/null && exec /init/init.sh
+            - exec /init/init.sh
           volumeMounts:
             - name: init
               mountPath: /init
