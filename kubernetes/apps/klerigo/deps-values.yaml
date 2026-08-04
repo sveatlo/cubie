@@ -178,10 +178,14 @@ configMaps:
         rtc:
           tcp_port: 7881
           # A Service can only reasonably expose one port, so media is muxed
-          # onto a single one. node_ip must be the address clients reach.
+          # onto a single one.
           udp_port: 7882
-          use_external_ip: false
-          node_ip: 10.69.11.43
+          # Clients are off-LAN, so the candidate has to be the router's public
+          # address. STUN discovers it, which keeps it out of this repo.
+          use_external_ip: true
+          # The self-ping check reaches the public address from inside the NAT,
+          # and a failed check drops the candidate silently.
+          skip_external_ip_validation: true
         room:
           empty_timeout: 30
         webhook:
@@ -250,6 +254,10 @@ service:
       rtc-udp:
         port: 7882
         protocol: UDP
+      # ICE over TCP, the fallback when a client's network blocks UDP.
+      rtc-tcp:
+        port: 7881
+        protocol: TCP
 
 ingress:
   livekit:
