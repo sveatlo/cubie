@@ -180,11 +180,11 @@ configMaps:
           # A Service can only reasonably expose one port, so media is muxed
           # onto a single one.
           udp_port: 7882
-          # Clients are off-LAN, so the candidate has to be the router's public
-          # address. STUN discovers it, which keeps it out of this repo.
+          # Clients are off-LAN, so the candidate must be the public address.
+          # STUN discovers it, which keeps the IP out of this public repo.
           use_external_ip: true
-          # The self-ping check reaches the public address from inside the NAT,
-          # and a failed check drops the candidate silently.
+          # The self-ping check has to reach the public address from inside the NAT.
+          # A failed check drops the candidate with no error anywhere.
           skip_external_ip_validation: true
         room:
           empty_timeout: 30
@@ -254,7 +254,7 @@ service:
       rtc-udp:
         port: 7882
         protocol: UDP
-      # ICE over TCP, the fallback when a client's network blocks UDP.
+      # Fallback for clients whose network blocks UDP.
       rtc-tcp:
         port: 7881
         protocol: TCP

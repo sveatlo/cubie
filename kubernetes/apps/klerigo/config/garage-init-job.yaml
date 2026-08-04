@@ -81,8 +81,8 @@ spec:
             defaultMode: 0755
       containers:
         - name: init
-          # Ships aws, curl and jq, so nothing is installed at runtime. Alpine
-          # plus apk needs root, which the restricted pod security policy denies.
+          # apk needs root, which the restricted pod security policy denies.
+          # Everything the script calls is already in this image.
           image: public.ecr.aws/aws-cli/aws-cli:2.36.15
           securityContext:
             allowPrivilegeEscalation: false
