@@ -25,12 +25,16 @@ metadata:
   namespace: monitoring
 spec:
   rateLimit:
-    # Per source IP, averaged over a minute. A browser session posts a batch
-    # every few seconds at most, so this is roughly two orders of magnitude of
-    # headroom for one client — and NAT means several clients can share an IP.
-    average: 60
+    # Per source IP, averaged over a minute. Traefik's Service runs
+    # externalTrafficPolicy: Local, so the client IP survives MetalLB and this
+    # is genuinely per-client rather than per-node.
+    #
+    # An active browser session posts on the order of tens of requests a minute.
+    # The headroom here is for NAT: a household or a school sharing one address
+    # is one bucket, so the limit has to hold several sessions at once.
+    average: 300
     period: 1m
-    burst: 120
+    burst: 100
 ---
 apiVersion: traefik.io/v1alpha1
 kind: Middleware

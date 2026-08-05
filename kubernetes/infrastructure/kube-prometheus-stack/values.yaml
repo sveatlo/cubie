@@ -41,6 +41,10 @@ prometheus:
     enableRemoteWriteReceiver: true
     serviceMonitorSelectorNilUsesHelmValues: false
     ruleSelectorNilUsesHelmValues: false
+    # Without this the selector defaults to `release: kube-prometheus-stack`,
+    # which no chart-generated PodMonitor carries — the otel node agent's among
+    # them, since the chart creates no Service to hang a ServiceMonitor on.
+    podMonitorSelectorNilUsesHelmValues: false
     ruleNamespaceSelector: {}
     storageSpec:
       volumeClaimTemplate:
