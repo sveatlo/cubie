@@ -1,0 +1,42 @@
+---
+# The Faro ingest endpoint is the only public, unauthenticated write path in the
+# cluster, and it shares Traefik with immich, nextcloud and authentik. These
+# limits exist to keep a runaway browser loop — or someone curling it — from
+# being everything else's problem too. faro.receiver does its own per-app rate
+# limiting behind this; that one protects Loki and Tempo, this one protects the
+# ingress.
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: faro-ingest
+  namespace: monitoring
+spec:
+  chain:
+    middlewares:
+      - name: faro-ingest-rate-limit
+        namespace: monitoring
+      - name: faro-ingest-in-flight
+        namespace: monitoring
+---
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: faro-ingest-rate-limit
+  namespace: monitoring
+spec:
+  rateLimit:
+    # Per source IP, averaged over a minute. A browser session posts a batch
+    # every few seconds at most, so this is roughly two orders of magnitude of
+    # headroom for one client — and NAT means several clients can share an IP.
+    average: 60
+    period: 1m
+    burst: 120
+---
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: faro-ingest-in-flight
+  namespace: monitoring
+spec:
+  inFlightReq:
+    amount: 20

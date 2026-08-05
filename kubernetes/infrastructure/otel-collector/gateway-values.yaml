@@ -1,0 +1,118 @@
+---
+# Ingest hub. Everything that emits telemetry — the Rust services over OTLP, the
+# node agents over OTLP, Alloy's faro.receiver over OTLP — arrives here, and
+# this is the only component that talks to Loki, Tempo and Prometheus.
+mode: deployment
+replicaCount: 1
+fullnameOverride: otel-collector
+
+image:
+  # Not the `-k8s` distribution the chart's docs steer you towards: it ships no
+  # `prometheus` exporter at all (`otelcol validate` against 0.157.0 lists
+  # otlp, otlphttp, file, debug, nop and the load balancers, and nothing else),
+  # so the metrics pipeline below cannot be built on it.
+  repository: otel/opentelemetry-collector-contrib
+
+presets:
+  kubernetesAttributes:
+    enabled: true
+
+config:
+  receivers:
+    jaeger: null
+    zipkin: null
+    # `otlp` and `prometheus` (a self-scrape of the collector's own :8888) both
+    # come from the chart defaults and are kept as-is.
+  processors:
+    batch:
+      timeout: 5s
+      send_batch_size: 8192
+      send_batch_max_size: 16384
+  exporters:
+    # Loki 3.x ingests OTLP natively at /otlp/v1/logs, which the otlphttp
+    # exporter derives from this base. The old `loki` exporter is gone from
+    # contrib, and going through it would lose structured metadata anyway.
+    otlphttp/loki:
+      endpoint: http://loki.monitoring.svc.cluster.local:3100/otlp
+    otlp/tempo:
+      endpoint: tempo.monitoring.svc.cluster.local:4317
+      tls:
+        insecure: true
+    # Scraped by the ServiceMonitor below rather than remote-written, so
+    # OTLP-pushed metrics reach Prometheus without Prometheus needing to accept
+    # writes from anything.
+    prometheus:
+      endpoint: ${env:MY_POD_IP}:8889
+      enable_open_metrics: true
+      # `resource_to_telemetry_conversion` is deliberately left off. It promotes
+      # every resource attribute to a label, and k8sattributes attaches around
+      # twenty of them — pod name and uid among them, which change on every
+      # restart. Resource attributes stay on `target_info` instead.
+  service:
+    pipelines:
+      traces:
+        receivers: [otlp]
+        processors: [memory_limiter, batch]
+        exporters: [otlp/tempo]
+      logs:
+        receivers: [otlp]
+        processors: [memory_limiter, batch]
+        exporters: [otlphttp/loki]
+      metrics:
+        receivers: [otlp, prometheus]
+        processors: [memory_limiter, batch]
+        exporters: [prometheus]
+
+ports:
+  otlp:
+    enabled: true
+    containerPort: 4317
+    servicePort: 4317
+    # A gateway Deployment has no business binding a port on its node.
+    hostPort: null
+    protocol: TCP
+    appProtocol: grpc
+  otlp-http:
+    enabled: true
+    containerPort: 4318
+    servicePort: 4318
+    hostPort: null
+    protocol: TCP
+  jaeger-compact:
+    enabled: false
+  jaeger-thrift:
+    enabled: false
+  jaeger-grpc:
+    enabled: false
+  zipkin:
+    enabled: false
+  # The collector's own internal telemetry.
+  metrics:
+    enabled: true
+    containerPort: 8888
+    servicePort: 8888
+    protocol: TCP
+  # Where the prometheus exporter republishes everything pushed in over OTLP.
+  prom-export:
+    enabled: true
+    containerPort: 8889
+    servicePort: 8889
+    protocol: TCP
+
+serviceMonitor:
+  enabled: true
+  metricsEndpoints:
+    # Only 8889. The collector's own :8888 telemetry already reaches Prometheus
+    # the long way round, via the prometheus receiver above and out through this
+    # same exporter; scraping both would double-count it.
+    - port: prom-export
+      # The exporter republishes each source's own job and instance labels.
+      # Without this, Prometheus overwrites them all with the collector's.
+      honorLabels: true
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    memory: 1Gi

@@ -1,0 +1,21 @@
+---
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+# Everything in the observability stack lands in `monitoring`: the Grafana
+# datasource sidecar runs with no NAMESPACE env, so it only ever watches its own
+# namespace, and the datasource ConfigMap below has to be there to be found.
+namespace: monitoring
+
+helmCharts:
+  # grafana-community, not grafana. As of 2026-03-16 the chart in grafana/helm-charts
+  # is maintained for Grafana Enterprise Logs only; the OSS chart forked to
+  # grafana-community at 6.55.0 and renumbered from there.
+  - name: loki
+    repo: https://grafana-community.github.io/helm-charts
+    version: "18.7.3"
+    releaseName: loki
+    namespace: monitoring
+    valuesFile: values.yaml
+
+resources:
+  - config/grafana-datasource.yaml
