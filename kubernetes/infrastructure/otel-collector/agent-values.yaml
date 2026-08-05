@@ -30,6 +30,40 @@ config:
     jaeger: null
     zipkin: null
     otlp: null
+    filelog:
+      # The logsCollection preset gives this receiver one `container` operator.
+      # A list under `config` replaces the preset's outright rather than
+      # appending to it, so container-parser has to be restated here.
+      # `max_log_size` is what `presets.logsCollection.maxRecombineLogSize`
+      # would otherwise have supplied.
+      operators:
+        - id: container-parser
+          type: container
+          max_log_size: 102400
+        # container-parser unwraps the CRI envelope and leaves the application's
+        # line as an opaque body string. klerigo's services log JSON, so without
+        # this their trace id stays inside that string where nothing can reach
+        # it. `if` keeps every plain-text logger in the cluster untouched.
+        - id: json-parser
+          type: json_parser
+          if: 'body matches "^\\s*[{]"'
+          parse_from: body
+          parse_to: attributes
+          # A line that opens with `{` and is not valid JSON is somebody else's
+          # problem. It should pass through rather than fill this agent's log.
+          on_error: send_quiet
+          # Body is left as the raw line rather than replaced by the parsed
+          # object, so Grafana still renders what the service actually wrote.
+        # The attribute alone is not enough: Grafana's Loki datasource links on
+        # `trace_id` structured metadata, which Loki populates from the
+        # LogRecord's TraceId field and not from an arbitrary attribute.
+        - id: trace-parser
+          type: trace_parser
+          if: 'attributes["trace_id"] != nil'
+          trace_id:
+            parse_from: attributes.trace_id
+          span_id:
+            parse_from: attributes.span_id
   exporters:
     otlp:
       endpoint: otel-collector.monitoring.svc.cluster.local:4317
