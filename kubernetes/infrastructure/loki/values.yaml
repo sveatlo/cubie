@@ -101,3 +101,7 @@ monitoring:
     enabled: true
   rules:
     enabled: true
+  # The mixin's dashboards and alert rules are useless without this — nothing
+  # else in the cluster scrapes Loki.
+  serviceMonitor:
+    enabled: true
