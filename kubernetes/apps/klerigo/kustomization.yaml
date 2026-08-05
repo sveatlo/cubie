@@ -6,7 +6,7 @@ helmCharts:
   # CI, which also writes the version below.
   - name: klerigo
     repo: oci://ghcr.io/klerigo-app
-    version: "0.1.0-a02ea82"
+    version: "0.1.0-550fe0c"
     releaseName: klerigo
     namespace: klerigo
     valuesFile: values.yaml
