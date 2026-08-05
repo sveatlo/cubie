@@ -1,0 +1,23 @@
+---
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: monitoring
+
+# Two releases of the same chart, because the chart takes one `mode` and the
+# three receivers this stack needs want two different ones: `filelog` has to be
+# a DaemonSet to reach every node's /var/log/pods, while `prometheus` on a
+# DaemonSet would scrape each target once per node and triple-count on this
+# three-node cluster.
+helmCharts:
+  - name: opentelemetry-collector
+    repo: https://open-telemetry.github.io/opentelemetry-helm-charts
+    version: "0.166.0"
+    releaseName: otel-collector-agent
+    namespace: monitoring
+    valuesFile: agent-values.yaml
+  - name: opentelemetry-collector
+    repo: https://open-telemetry.github.io/opentelemetry-helm-charts
+    version: "0.166.0"
+    releaseName: otel-collector
+    namespace: monitoring
+    valuesFile: gateway-values.yaml

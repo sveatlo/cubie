@@ -1,0 +1,75 @@
+---
+# Node agent: tails container logs off each node's filesystem and forwards them
+# to the gateway. It runs no otlp listener — applications talk to the gateway
+# service directly.
+mode: daemonset
+# The chart appends `-agent` to every daemonset-mode resource name, so this
+# renders as `otel-collector-node-agent`.
+fullnameOverride: otel-collector-node
+
+image:
+  # The chart ships no default repository. `contrib` to match the gateway, which
+  # needs it — see gateway-values.yaml. The core image carries neither the
+  # filelog receiver nor the k8sattributes processor this agent runs on.
+  repository: otel/opentelemetry-collector-contrib
+
+presets:
+  logsCollection:
+    enabled: true
+    # Without checkpoints the agent re-reads every log file from the top after a
+    # restart, duplicating everything still on disk.
+    storeCheckpoints: true
+    # It would ship its own logs about shipping logs.
+    includeCollectorLogs: false
+  kubernetesAttributes:
+    enabled: true
+
+config:
+  receivers:
+    # Not spoken by anything in this cluster, and each is an open listener.
+    jaeger: null
+    zipkin: null
+    otlp: null
+  exporters:
+    otlp:
+      endpoint: otel-collector.monitoring.svc.cluster.local:4317
+      tls:
+        insecure: true
+  service:
+    pipelines:
+      # The chart's logsCollection preset supplies the filelog receiver and the
+      # k8sattributes preset prepends its processor to whatever is listed here.
+      logs:
+        receivers: [filelog]
+        processors: [memory_limiter, batch]
+        exporters: [otlp]
+      traces: null
+      metrics: null
+
+ports:
+  otlp:
+    enabled: false
+  otlp-http:
+    enabled: false
+  jaeger-compact:
+    enabled: false
+  jaeger-thrift:
+    enabled: false
+  jaeger-grpc:
+    enabled: false
+  zipkin:
+    enabled: false
+  metrics:
+    enabled: true
+
+# A PodMonitor rather than a ServiceMonitor: the chart creates no Service in
+# daemonset mode, and this agent has no listener worth putting one in front of.
+podMonitor:
+  enabled: true
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 128Mi
+  limits:
+    memory: 512Mi

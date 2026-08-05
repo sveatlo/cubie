@@ -1,0 +1,62 @@
+---
+replicas: 1
+
+tempo:
+  reportingEnabled: false
+  # 7d, the map's starting position. Traces are the volume this map is least
+  # able to predict — it instruments down to the repository layer at 100%
+  # sampling — so this is the first number to revisit under real load.
+  retention: 168h
+  storage:
+    trace:
+      backend: local
+      local:
+        path: /var/tempo/traces
+      wal:
+        path: /var/tempo/wal
+  # The chart's default also opens Jaeger on four ports and OpenCensus on one.
+  # They cannot be removed: templates/_ports.tpl dereferences
+  # `.Values.tempo.receivers.jaeger.protocols.thrift_compact` unconditionally
+  # and nulling the key fails the render. Left at the chart default.
+  receivers:
+    otlp:
+      protocols:
+        grpc:
+          endpoint: "0.0.0.0:4317"
+        http:
+          endpoint: "0.0.0.0:4318"
+  # Span metrics and service graphs are computed from the same spans Tempo
+  # already holds, and remote-written into the existing Prometheus. This is what
+  # makes Grafana's service-graph and RED-metrics panels work without the
+  # application emitting anything extra.
+  metricsGenerator:
+    enabled: true
+    remoteWriteUrl: http://kube-prometheus-stack-prometheus.monitoring.svc.cluster.local:9090/api/v1/write
+    storage:
+      path: /var/tempo/metrics-generator/wal
+    traces_storage:
+      path: /var/tempo/metrics-generator/traces
+  overrides:
+    defaults:
+      metrics_generator:
+        processors:
+          - service-graphs
+          - span-metrics
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      memory: 2Gi
+
+persistence:
+  enabled: true
+  storageClassName: nfs
+  accessModes:
+    - ReadWriteOnce
+  # Advisory: nfs.csi enforces no quota, so `tempo.retention` above is what
+  # actually bounds the footprint.
+  size: 100Gi
+
+serviceMonitor:
+  enabled: true

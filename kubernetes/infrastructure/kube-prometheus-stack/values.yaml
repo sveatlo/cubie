@@ -36,6 +36,9 @@ prometheus:
       - prometheus.${DOMAIN_0}
   prometheusSpec:
     retention: 30d
+    # Tempo's metrics generator derives span metrics and service graphs from the
+    # traces it already holds and remote-writes them here. Nothing else writes.
+    enableRemoteWriteReceiver: true
     serviceMonitorSelectorNilUsesHelmValues: false
     ruleSelectorNilUsesHelmValues: false
     ruleNamespaceSelector: {}

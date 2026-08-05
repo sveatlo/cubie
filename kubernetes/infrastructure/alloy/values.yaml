@@ -1,0 +1,133 @@
+---
+# Alloy exists here for exactly one job: `faro.receiver`, which symbolicates
+# browser stack traces against source maps before the data goes anywhere else.
+# The upstream Collector's `faroreceiver` converts Faro to OTLP but does not
+# symbolicate, and Grafana Cloud's source-map upload is Cloud-only — without
+# this component web errors arrive minified.
+controller:
+  # The chart defaults to a DaemonSet. This one is reached through an ingress
+  # from the public internet, so node-local placement buys nothing.
+  type: deployment
+  replicas: 1
+
+alloy:
+  # Requires a StatefulSet, and there is one replica.
+  clustering:
+    enabled: false
+  extraPorts:
+    - name: faro
+      port: 12347
+      targetPort: 12347
+      protocol: TCP
+  configMap:
+    # Careful: the chart runs this through Helm's `tpl`, so any `{{ }}` here
+    # would be evaluated by Helm before Alloy ever sees it. The `${DOMAIN_2}`
+    # placeholders are substituted later, by ArgoCD's kustomize-envsubst plugin.
+    content: |
+      logging {
+        level  = "info"
+        format = "logfmt"
+      }
+
+      faro.receiver "frontend" {
+        server {
+          // The chart's default is 127.0.0.1, which in a pod means nothing can
+          // reach it.
+          listen_address           = "0.0.0.0"
+          listen_port              = 12347
+          cors_allowed_origins     = ["https://${DOMAIN_2}", "https://*.${DOMAIN_2}"]
+          max_allowed_payload_size = "5MiB"
+
+          // This is the ingest endpoint's only protection today. See the
+          // Traefik middleware alongside it in config/ for the outer layer,
+          // and the PR description for the open question about an ingest key.
+          rate_limiting {
+            enabled    = true
+            strategy   = "per_app"
+            rate       = 100
+            burst_size = 200
+          }
+        }
+
+        sourcemaps {
+          // `download` is off deliberately. With it on, Alloy server-side GETs
+          // the `sourceURL` out of the Faro payload, and anyone can POST to a
+          // public /collect. `download_from_origins` would be the guard, but it
+          // is a MinIO glob matched against the whole URL with an implicit
+          // trailing `*`, and its `*` crosses `/` and `?` — so
+          // `https://*.${DOMAIN_2}` also matches
+          // `https://attacker.tld/x?y=.${DOMAIN_2}/a.js`. That is an SSRF
+          // primitive from a pod on the node that runs authentik.
+          //
+          // A `location` block fetches from a base URL fixed here instead, with
+          // only the path suffix coming from the payload, so the host can never
+          // be attacker-chosen. It also skips the `//# sourceMappingURL=`
+          // comment entirely, which means a `build.sourcemap: "hidden"` build
+          // still symbolicates — the map just has to be served next to the
+          // bundle.
+          download = false
+
+          location {
+            minified_path_prefix = "https://${DOMAIN_2}/"
+            path                 = "https://${DOMAIN_2}/"
+          }
+
+          cache {
+            ttl = "24h"
+          }
+        }
+
+        output {
+          logs   = [otelcol.receiver.loki.faro.receiver]
+          traces = [otelcol.processor.batch.default.input]
+        }
+      }
+
+      // faro.receiver emits logs in Loki's shape. This converts them to OTLP so
+      // both signals leave over the same exporter and no `loki.write` is needed.
+      otelcol.receiver.loki "faro" {
+        output {
+          logs = [otelcol.processor.batch.default.input]
+        }
+      }
+
+      otelcol.processor.batch "default" {
+        output {
+          logs   = [otelcol.exporter.otlp.gateway.input]
+          traces = [otelcol.exporter.otlp.gateway.input]
+        }
+      }
+
+      otelcol.exporter.otlp "gateway" {
+        client {
+          endpoint = "otel-collector.monitoring.svc.cluster.local:4317"
+          tls {
+            insecure = true
+          }
+        }
+      }
+
+ingress:
+  # The chart's ingress targets the Faro port specifically.
+  enabled: true
+  ingressClassName: traefik
+  faroPort: 12347
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    traefik.ingress.kubernetes.io/router.tls: "true"
+    # Deliberately no traefik-lan-only: browsers post here directly, from
+    # wherever the student happens to be. Rate limiting stands in for the
+    # network restriction.
+    traefik.ingress.kubernetes.io/router.middlewares: monitoring-faro-ingest@kubernetescrd
+  hosts:
+    - faro.${DOMAIN_2}
+
+serviceMonitor:
+  enabled: true
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 128Mi
+  limits:
+    memory: 512Mi

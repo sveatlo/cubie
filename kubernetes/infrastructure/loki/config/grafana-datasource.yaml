@@ -1,0 +1,29 @@
+---
+# Picked up by the kube-prometheus-stack Grafana's datasource sidecar, which
+# watches `grafana_datasource: "1"` in its own namespace only.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-datasource-loki
+  namespace: monitoring
+  labels:
+    grafana_datasource: "1"
+data:
+  loki-datasource.yaml: |
+    apiVersion: 1
+    datasources:
+      - name: Loki
+        type: loki
+        uid: loki
+        access: proxy
+        url: http://loki.monitoring.svc.cluster.local:3100
+        jsonData:
+          # OTLP puts trace_id in structured metadata, so the link is a field
+          # lookup rather than a regex over the log line.
+          derivedFields:
+            - name: TraceID
+              datasourceUid: tempo
+              matcherType: label
+              matcherRegex: trace_id
+              url: "$${__value.raw}"
+              urlDisplayLabel: View trace

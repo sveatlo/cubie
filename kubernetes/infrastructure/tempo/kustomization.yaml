@@ -1,0 +1,18 @@
+---
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: monitoring
+
+helmCharts:
+  # `tempo`, not `tempo-distributed` — this is the single-binary chart. And
+  # grafana-community, not grafana: the chart there was marked deprecated and
+  # moved here on 2026-01-30.
+  - name: tempo
+    repo: https://grafana-community.github.io/helm-charts
+    version: "2.2.3"
+    releaseName: tempo
+    namespace: monitoring
+    valuesFile: values.yaml
+
+resources:
+  - config/grafana-datasource.yaml
