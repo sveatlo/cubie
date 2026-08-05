@@ -64,6 +64,36 @@ config:
             parse_from: attributes.trace_id
           span_id:
             parse_from: attributes.span_id
+        # Same shape of gap as trace-parser. Loki fills `detected_level` from
+        # the LogRecord's severity and falls back to guessing at the body when
+        # nothing sets it, which is why every klerigo line reads as `unknown`
+        # today. The level is right there in the JSON; it just never leaves the
+        # attribute map.
+        - id: severity-parser
+          type: severity_parser
+          if: 'attributes["level"] != nil'
+          parse_from: attributes.level
+          # A level string outside the built-in map belongs to some other
+          # project's log shape. Leave that record's severity unset rather than
+          # make it this agent's problem.
+          on_error: send_quiet
+        # Until now the LogRecord timestamp came from the CRI envelope. In
+        # steady state that differs from the application's own by microseconds
+        # and nobody notices; under a crashloop, backpressure or a replayed file
+        # it is the difference between the order things happened and the order
+        # the agent got to them.
+        - id: time-parser
+          type: time_parser
+          if: 'attributes["timestamp"] != nil'
+          parse_from: attributes.timestamp
+          # The layout demands an explicit zone, which excludes more than it
+          # looks like it does: authentik logs a `timestamp` field too, as naive
+          # local time. A layout that accepted it would silently relabel those
+          # lines as UTC. Failing to parse them is the correct outcome — they
+          # keep the CRI timestamp, which is what they have today.
+          layout_type: gotime
+          layout: '2006-01-02T15:04:05.999999999Z07:00'
+          on_error: send_quiet
   exporters:
     otlp:
       endpoint: otel-collector.monitoring.svc.cluster.local:4317
