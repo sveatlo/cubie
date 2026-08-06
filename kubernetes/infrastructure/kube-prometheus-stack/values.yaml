@@ -1,10 +1,48 @@
 ---
+# Every container below carries a memory limit, and that is the point rather
+# than a tidiness measure. Talos v1.12 ships a userspace OOM controller whose
+# default ranking expression is
+#   memory_max.hasValue() ? 0.0
+#     : {Besteffort: 1.0, Burstable: 0.5, Guaranteed: 0.0}[class] * memory_current
+# so a cgroup with a memory limit scores zero and is never selected, while one
+# without a limit is ranked purely on how much memory it is using. The whole
+# monitoring stack was unlimited, which made Prometheus and Grafana the two
+# largest BestEffort cgroups on an oversubscribed node and therefore the first
+# things killed, over and over. A pod cgroup only gets memory.max when *every*
+# one of its containers sets a limit, so the init containers and the operator's
+# injected config-reloaders below are load-bearing, not incidental.
+#
+# CPU carries requests but deliberately no limits: the nodes are already CPU
+# contended and throttling the monitoring stack would turn slow scrapes into
+# failed liveness probes, which is the failure this is meant to end.
+
 grafana:
   admin:
     existingSecret: grafana-admin-secret
     userKey: admin-user
     passwordKey: admin-password
+  # Grafana's own RSS sits around 170Mi; the rest of the pod cgroup's ~590Mi at
+  # kill time was reclaimable page cache off the NFS-backed volume.
+  resources:
+    requests:
+      cpu: 100m
+      memory: 192Mi
+    limits:
+      memory: 512Mi
+  initChownData:
+    resources:
+      requests:
+        cpu: 25m
+        memory: 32Mi
+      limits:
+        memory: 128Mi
   sidecar:
+    resources:
+      requests:
+        cpu: 25m
+        memory: 64Mi
+      limits:
+        memory: 192Mi
     dashboards:
       enabled: true
       label: grafana_dashboard
@@ -46,6 +84,20 @@ prometheus:
     # them, since the chart creates no Service to hang a ServiceMonitor on.
     podMonitorSelectorNilUsesHelmValues: false
     ruleNamespaceSelector: {}
+    # The head holds 199k active series, which puts steady state somewhere
+    # around 1-1.2Gi once Go's overhead is counted; the 452-530Mi the cgroup
+    # measured at kill time is an undercount, since every one of those kills
+    # landed seconds after WAL replay and before scraping resumed. 3Gi is a
+    # deliberate over-provision: the limit exists to buy immunity from the
+    # Talos ranking expression, not to cap Prometheus, and a limit set under
+    # the real working set would trade an intermittent node-level kill for a
+    # deterministic one at this cgroup's own boundary.
+    resources:
+      requests:
+        cpu: 200m
+        memory: 1Gi
+      limits:
+        memory: 3Gi
     storageSpec:
       volumeClaimTemplate:
         spec:
@@ -78,6 +130,12 @@ alertmanager:
   alertmanagerSpec:
     secrets:
       - alertmanager-smtp-password
+    resources:
+      requests:
+        cpu: 25m
+        memory: 128Mi
+      limits:
+        memory: 384Mi
     storage:
       volumeClaimTemplate:
         spec:
@@ -103,3 +161,38 @@ alertmanager:
         email_configs:
           - to: "sysadmin@${DOMAIN_0}"
             send_resolved: true
+
+prometheusOperator:
+  resources:
+    requests:
+      cpu: 50m
+      memory: 96Mi
+    limits:
+      memory: 256Mi
+  # These become the operator's --config-reloader-* flags, which is the only way
+  # to reach the config-reloader and init-config-reloader containers it injects
+  # into the Prometheus and Alertmanager pods. Without them those two pods keep
+  # a container with no limit and so never get a pod-level memory.max at all.
+  prometheusConfigReloader:
+    resources:
+      requests:
+        cpu: 10m
+        memory: 32Mi
+      limits:
+        memory: 128Mi
+
+kube-state-metrics:
+  resources:
+    requests:
+      cpu: 25m
+      memory: 64Mi
+    limits:
+      memory: 256Mi
+
+prometheus-node-exporter:
+  resources:
+    requests:
+      cpu: 25m
+      memory: 32Mi
+    limits:
+      memory: 128Mi
