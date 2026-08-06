@@ -102,7 +102,7 @@ spec:
             - name: GARAGE_BUCKET
               value: klerigo-media
             - name: WEB_ORIGIN
-              value: https://${DOMAIN_2}
+              value: https://app.${DOMAIN_2}
             - name: WEB_ORIGIN_WILDCARD
               value: https://*.${DOMAIN_2}
             - name: GARAGE_ADMIN_TOKEN
