@@ -13,7 +13,9 @@ spec:
     kind: ClusterIssuer
   dnsNames:
     - "${DOMAIN_2}"
-    # One label only, which is what tenant subdomains use.
+    # One label only; a wildcard does not span a dot.
     - "*.${DOMAIN_2}"
+    # Klerigo tenants are <slug>.app.${DOMAIN_2}, two labels down.
+    - "*.app.${DOMAIN_2}"
   duration: 2160h # 90 days
   renewBefore: 360h # renew 15 days before expiry
