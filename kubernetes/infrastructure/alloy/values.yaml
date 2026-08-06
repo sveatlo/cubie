@@ -35,7 +35,7 @@ alloy:
           // reach it.
           listen_address           = "0.0.0.0"
           listen_port              = 12347
-          cors_allowed_origins     = ["https://${DOMAIN_2}", "https://*.${DOMAIN_2}"]
+          cors_allowed_origins     = ["https://*.${DOMAIN_2}"]
           max_allowed_payload_size = "5MiB"
 
           // This is the ingest endpoint's only protection today. See the
@@ -68,8 +68,8 @@ alloy:
           download = false
 
           location {
-            minified_path_prefix = "https://${DOMAIN_2}/"
-            path                 = "https://${DOMAIN_2}/"
+            minified_path_prefix = "https://app.${DOMAIN_2}/"
+            path                 = "https://app.${DOMAIN_2}/"
           }
 
           cache {
@@ -120,7 +120,7 @@ ingress:
     # network restriction.
     traefik.ingress.kubernetes.io/router.middlewares: monitoring-faro-ingest@kubernetescrd
   hosts:
-    - faro.${DOMAIN_2}
+    - faro.${DOMAIN_1}
 
 serviceMonitor:
   enabled: true
