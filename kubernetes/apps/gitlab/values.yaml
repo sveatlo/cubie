@@ -1,0 +1,301 @@
+---
+global:
+  edition: ce
+  hosts:
+    domain: ${DOMAIN_4}
+    https: true
+    ssh: gitlab.${DOMAIN_4}
+    gitlab:
+      name: gitlab.${DOMAIN_4}
+    registry:
+      name: registry.${DOMAIN_4}
+    kas:
+      name: kas.${DOMAIN_4}
+    pages:
+      name: pages.${DOMAIN_4}
+  ingress:
+    apiVersion: networking.k8s.io/v1
+    enabled: true
+    class: traefik
+    provider: traefik
+    configureCertmanager: false
+    annotations:
+      traefik.ingress.kubernetes.io/router.entrypoints: websecure
+      traefik.ingress.kubernetes.io/router.tls: "true"
+      traefik.ingress.kubernetes.io/router.middlewares: traefik-lan-only@kubernetescrd
+    tls:
+      enabled: false
+  gatewayApi:
+    enabled: false
+    installEnvoy: false
+    configureCertmanager: false
+  monitoring:
+    enabled: true
+  hpa:
+    apiVersion: autoscaling/v2
+  pdb:
+    apiVersion: policy/v1
+  traefik:
+    apiVersion: traefik.io/v1alpha1
+  psql:
+    host: gitlab-db-rw
+    port: 5432
+    database: gitlabhq_production
+    username: gitlab
+    password:
+      useSecret: true
+      secret: gitlab-db
+      key: password
+  redis:
+    host: gitlab-valkey
+    port: 6379
+    auth:
+      enabled: true
+      secret: gitlab-valkey
+      key: password
+  appConfig:
+    initialDefaults:
+      signupEnabled: false
+    object_store:
+      enabled: true
+      proxy_download: true
+      connection:
+        secret: gitlab-object-storage
+        key: rails-connection
+    lfs:
+      bucket: gitlab-lfs
+    artifacts:
+      bucket: gitlab-artifacts
+    uploads:
+      bucket: gitlab-uploads
+    packages:
+      bucket: gitlab-packages
+    externalDiffs:
+      enabled: true
+      bucket: gitlab-external-diffs
+    terraformState:
+      enabled: true
+      bucket: gitlab-terraform-state
+    ciSecureFiles:
+      enabled: true
+      bucket: gitlab-ci-secure-files
+    dependencyProxy:
+      enabled: true
+      bucket: gitlab-dependency-proxy
+    backups:
+      bucket: gitlab-backups
+      tmpBucket: gitlab-backups-tmp
+  initialRootPassword:
+    secret: gitlab-initial-root-password
+    key: password
+  registry:
+    bucket: gitlab-registry
+  pages:
+    enabled: true
+    objectStore:
+      enabled: true
+      bucket: gitlab-pages
+      connection:
+        secret: gitlab-object-storage
+        key: rails-connection
+
+installCertmanager: false
+nginx-ingress:
+  enabled: false
+nginx-ingress-geo:
+  enabled: false
+traefik:
+  install: false
+prometheus:
+  install: false
+haproxy:
+  install: false
+gitlab-zoekt:
+  install: false
+openbao:
+  install: false
+ai-gateway:
+  install: false
+
+registry:
+  hpa:
+    minReplicas: 1
+    maxReplicas: 1
+  storage:
+    secret: gitlab-object-storage
+    key: registry-storage
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+  metrics:
+    enabled: true
+    serviceMonitor:
+      enabled: true
+
+gitlab:
+  webservice:
+    minReplicas: 1
+    maxReplicas: 1
+    workerProcesses: 2
+    resources:
+      requests:
+        cpu: 250m
+        memory: 1Gi
+      limits:
+        cpu: "2"
+        memory: 3Gi
+    metrics:
+      serviceMonitor:
+        enabled: true
+  sidekiq:
+    minReplicas: 1
+    maxReplicas: 1
+    resources:
+      requests:
+        cpu: 200m
+        memory: 768Mi
+      limits:
+        cpu: "2"
+        memory: 2Gi
+    metrics:
+      podMonitor:
+        enabled: true
+  gitaly:
+    persistence:
+      storageClass: nfs
+      size: 50Gi
+    resources:
+      requests:
+        cpu: 100m
+        memory: 256Mi
+      limits:
+        cpu: "2"
+        memory: 2Gi
+    metrics:
+      serviceMonitor:
+        enabled: true
+  gitlab-shell:
+    sshDaemon: gitlab-sshd
+    minReplicas: 1
+    maxReplicas: 1
+    resources:
+      requests:
+        cpu: 25m
+        memory: 32Mi
+      limits:
+        cpu: 500m
+        memory: 256Mi
+    metrics:
+      enabled: true
+      serviceMonitor:
+        enabled: true
+  gitlab-pages:
+    minReplicas: 1
+    maxReplicas: 1
+    resources:
+      requests:
+        cpu: 50m
+        memory: 128Mi
+      limits:
+        cpu: "1"
+        memory: 1Gi
+    metrics:
+      serviceMonitor:
+        enabled: true
+  kas:
+    minReplicas: 1
+    maxReplicas: 1
+    resources:
+      requests:
+        cpu: 50m
+        memory: 128Mi
+      limits:
+        cpu: "1"
+        memory: 512Mi
+    metrics:
+      serviceMonitor:
+        enabled: true
+  gitlab-exporter:
+    metrics:
+      enabled: true
+      serviceMonitor:
+        enabled: true
+  toolbox:
+    backups:
+      objectStorage:
+        config:
+          secret: gitlab-object-storage
+          key: rails-connection
+    resources:
+      requests:
+        cpu: 50m
+        memory: 256Mi
+      limits:
+        cpu: "1"
+        memory: 1Gi
+
+gitlab-runner:
+  install: true
+  concurrent: 3
+  replicas: 1
+  gitlabUrl: https://gitlab.${DOMAIN_4}
+  rbac:
+    create: true
+  runners:
+    jobNamespace: gitlab-runner
+    executor: kubernetes
+    name: trusted-kubernetes
+    locked: true
+    runUntagged: false
+    tags: trusted,kubernetes
+    config: |
+      [[runners]]
+        [runners.kubernetes]
+          namespace = "gitlab-runner"
+          image = "alpine:3.22"
+          privileged = false
+          cpu_request = "100m"
+          memory_request = "128Mi"
+          cpu_limit = "2"
+          memory_limit = "2Gi"
+          helper_cpu_request = "50m"
+          helper_memory_request = "128Mi"
+          helper_cpu_limit = "500m"
+          helper_memory_limit = "512Mi"
+          service_cpu_request = "50m"
+          service_memory_request = "128Mi"
+          service_cpu_limit = "1"
+          service_memory_limit = "1Gi"
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+  metrics:
+    enabled: true
+    serviceMonitor:
+      enabled: true
+  service:
+    enabled: true
+  extraObjects:
+    - apiVersion: v1
+      kind: Namespace
+      metadata:
+        name: gitlab-runner
+    - apiVersion: monitoring.coreos.com/v1
+      kind: ServiceMonitor
+      metadata:
+        name: gitlab-runner
+      spec:
+        endpoints:
+          - port: metrics
+        selector:
+          matchLabels:
+            app: gitlab-gitlab-runner
+            release: gitlab
