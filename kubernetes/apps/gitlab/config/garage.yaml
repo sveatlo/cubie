@@ -1,0 +1,149 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: gitlab-garage
+  namespace: gitlab
+data:
+  garage.toml: |
+    metadata_dir = "/var/lib/garage/meta"
+    data_dir = "/var/lib/garage/data"
+    db_engine = "sqlite"
+    replication_factor = 1
+    metadata_fsync = true
+    data_fsync = true
+
+    rpc_bind_addr = "[::]:3901"
+    rpc_public_addr = "gitlab-garage-0.gitlab-garage.gitlab.svc.cluster.local:3901"
+
+    [s3_api]
+    s3_region = "garage"
+    api_bind_addr = "[::]:3900"
+    root_domain = ".s3.garage.internal"
+
+    [admin]
+    api_bind_addr = "[::]:3903"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: gitlab-garage
+  namespace: gitlab
+spec:
+  clusterIP: None
+  selector:
+    app.kubernetes.io/name: gitlab-garage
+  ports:
+    - name: rpc
+      port: 3901
+      targetPort: rpc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: gitlab-garage-s3
+  namespace: gitlab
+spec:
+  selector:
+    app.kubernetes.io/name: gitlab-garage
+  ports:
+    - name: s3
+      port: 3900
+      targetPort: s3
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: gitlab-garage-admin
+  namespace: gitlab
+spec:
+  selector:
+    app.kubernetes.io/name: gitlab-garage
+  ports:
+    - name: admin
+      port: 3903
+      targetPort: admin
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: gitlab-garage
+  namespace: gitlab
+spec:
+  serviceName: gitlab-garage
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: gitlab-garage
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: gitlab-garage
+    spec:
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: garage
+          image: docker.io/dxflrs/garage:v2.3.0
+          imagePullPolicy: IfNotPresent
+          args: ["-c", "/etc/garage/garage.toml", "server"]
+          env:
+            - name: GARAGE_RPC_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: gitlab-garage
+                  key: rpc-secret
+            - name: GARAGE_ADMIN_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: gitlab-garage
+                  key: admin-token
+          ports:
+            - name: s3
+              containerPort: 3900
+            - name: rpc
+              containerPort: 3901
+            - name: admin
+              containerPort: 3903
+          readinessProbe:
+            tcpSocket:
+              port: admin
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket:
+              port: admin
+            initialDelaySeconds: 30
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: "1"
+              memory: 1Gi
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: config
+              mountPath: /etc/garage/garage.toml
+              subPath: garage.toml
+              readOnly: true
+            - name: data
+              mountPath: /var/lib/garage
+      volumes:
+        - name: config
+          configMap:
+            name: gitlab-garage
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        storageClassName: nfs
+        resources:
+          requests:
+            storage: 60Gi

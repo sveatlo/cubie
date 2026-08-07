@@ -1,0 +1,112 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: gitlab-garage-init
+  namespace: gitlab
+data:
+  init.sh: |
+    #!/bin/sh
+    set -eu
+
+    api() {
+      method=$1
+      path=$2
+      data=${3:-}
+      if [ -n "$data" ]; then
+        curl -fsS --retry 5 --retry-all-errors -X "$method" \
+          -H "Authorization: Bearer $GARAGE_ADMIN_TOKEN" \
+          -H "Content-Type: application/json" \
+          -d "$data" "$GARAGE_ADMIN_ENDPOINT$path"
+      else
+        curl -fsS --retry 5 --retry-all-errors -X "$method" \
+          -H "Authorization: Bearer $GARAGE_ADMIN_TOKEN" \
+          "$GARAGE_ADMIN_ENDPOINT$path"
+      fi
+    }
+
+    until status=$(api GET /v2/GetClusterStatus); do
+      sleep 5
+    done
+
+    layout=$(api GET /v2/GetClusterLayout)
+    if [ "$(echo "$layout" | jq '.roles | length')" -eq 0 ]; then
+      node=$(echo "$status" | jq -r '.nodes[] | select(.isUp) | .id' | head -n 1)
+      api POST /v2/UpdateClusterLayout \
+        "{\"roles\":[{\"id\":\"$node\",\"zone\":\"dc1\",\"capacity\":64424509440,\"tags\":[]}] }" >/dev/null
+      version=$(($(echo "$layout" | jq -r '.version') + 1))
+      api POST /v2/ApplyClusterLayout "{\"version\":$version}" >/dev/null
+    fi
+
+    if ! api GET "/v2/GetKeyInfo?id=$GARAGE_ACCESS_KEY_ID" >/dev/null 2>&1; then
+      api POST /v2/ImportKey \
+        "{\"accessKeyId\":\"$GARAGE_ACCESS_KEY_ID\",\"secretAccessKey\":\"$GARAGE_SECRET_ACCESS_KEY\",\"name\":\"gitlab\"}" >/dev/null
+    fi
+
+    for bucket in $GARAGE_BUCKETS; do
+      if bucket_info=$(api GET "/v2/GetBucketInfo?globalAlias=$bucket" 2>/dev/null); then
+        bucket_id=$(echo "$bucket_info" | jq -r '.id')
+      else
+        bucket_id=$(api POST /v2/CreateBucket "{\"globalAlias\":\"$bucket\"}" | jq -r '.id')
+      fi
+      api POST /v2/AllowBucketKey \
+        "{\"bucketId\":\"$bucket_id\",\"accessKeyId\":\"$GARAGE_ACCESS_KEY_ID\",\"permissions\":{\"read\":true,\"write\":true,\"owner\":true}}" >/dev/null
+    done
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: gitlab-garage-init
+  namespace: gitlab
+  annotations:
+    argocd.argoproj.io/hook: Sync
+    argocd.argoproj.io/sync-wave: "1"
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation,HookSucceeded
+spec:
+  backoffLimit: 20
+  template:
+    spec:
+      restartPolicy: OnFailure
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      volumes:
+        - name: init
+          configMap:
+            name: gitlab-garage-init
+            defaultMode: 0755
+      containers:
+        - name: init
+          image: public.ecr.aws/aws-cli/aws-cli:2.36.15
+          command: ["/bin/sh", "-c"]
+          args: ["exec /init/init.sh"]
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: init
+              mountPath: /init
+              readOnly: true
+          env:
+            - name: GARAGE_ADMIN_ENDPOINT
+              value: http://gitlab-garage-admin:3903
+            - name: GARAGE_BUCKETS
+              value: gitlab-artifacts gitlab-lfs gitlab-uploads gitlab-packages gitlab-external-diffs gitlab-terraform-state gitlab-dependency-proxy gitlab-ci-secure-files gitlab-pages gitlab-registry gitlab-backups
+            - name: GARAGE_ADMIN_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: gitlab-garage
+                  key: admin-token
+            - name: GARAGE_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: gitlab-object-storage
+                  key: access-key-id
+            - name: GARAGE_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: gitlab-object-storage
+                  key: secret-access-key
