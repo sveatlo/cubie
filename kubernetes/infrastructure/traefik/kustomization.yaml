@@ -17,6 +17,8 @@ resources:
   - config/wildcard-cert-domain-1.yaml
   - config/wildcard-cert-domain-2.yaml
   - config/wildcard-cert-domain-3.yaml
+  - config/wildcard-cert-domain-4.yaml
+  - config/wildcard-cert-domain-4-pages.yaml
   - config/default-tls.yaml
   - config/tls-option.yaml
   - config/middleware-lan-only.yaml

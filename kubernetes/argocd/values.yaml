@@ -262,7 +262,7 @@ extraObjects:
                 # safe when ArgoCD renders its own values (which embed this plugin)
                 # through this very CMP.
                 args=()
-                for v in DOMAIN_0 DOMAIN_1 DOMAIN_2 DOMAIN_3; do
+                for v in DOMAIN_0 DOMAIN_1 DOMAIN_2 DOMAIN_3 DOMAIN_4; do
                   eval "val=\${$v:?missing $v}"
                   args+=(-e "s|\${$v}|$val|g")
                 done
