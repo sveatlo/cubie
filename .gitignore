@@ -28,6 +28,7 @@ vars/*.yaml
 # Temporary
 tmp/
 *.tmp
+.worktrees/
 
 docs/plans/
 kubernetes/**/charts/
