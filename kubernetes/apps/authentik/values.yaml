@@ -17,6 +17,10 @@ global:
           name: authentik-secret
           key: smtp-password
 
+blueprints:
+  configMaps:
+    - authentik-gitlab-blueprint
+
 authentik:
   general:
     allowUserChangeEmail: true
@@ -39,6 +43,16 @@ authentik:
     use_ssl: false
     timeout: 30
     from: "Authentik <auth@${DOMAIN_0}>"
+
+worker:
+  volumeMounts:
+    - name: gitlab-oidc-secret
+      mountPath: /etc/authentik/gitlab
+      readOnly: true
+  volumes:
+    - name: gitlab-oidc-secret
+      secret:
+        secretName: gitlab-oidc
 
 server:
   ingress:

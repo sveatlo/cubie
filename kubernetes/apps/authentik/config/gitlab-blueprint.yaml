@@ -1,0 +1,66 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: authentik-gitlab-blueprint
+  namespace: authentik
+data:
+  gitlab.yaml: |
+    version: 1
+    metadata:
+      name: GitLab
+      labels:
+        blueprints.goauthentik.io/instantiate: "true"
+    entries:
+      - id: gitlab-access-policy
+        model: authentik_policies_expression.expressionpolicy
+        state: present
+        identifiers:
+          name: GitLab access
+        attrs:
+          expression: return request.user.is_authenticated
+      - id: gitlab-provider
+        model: authentik_providers_oauth2.oauth2provider
+        state: present
+        identifiers:
+          name: GitLab
+        attrs:
+          authorization_flow: !Find [authentik_flows.flow, [slug, default-provider-authorization-implicit-consent]]
+          invalidation_flow: !Find [authentik_flows.flow, [slug, default-provider-invalidation-flow]]
+          property_mappings:
+            - !Find [authentik_providers_oauth2.scopemapping, [scope_name, openid]]
+            - !Find [authentik_providers_oauth2.scopemapping, [scope_name, profile]]
+            - !Find [authentik_providers_oauth2.scopemapping, [scope_name, email]]
+          client_type: confidential
+          client_id: gitlab
+          client_secret: !File /etc/authentik/gitlab/client-secret
+          grant_types:
+            - authorization_code
+            - refresh_token
+          redirect_uris:
+            - matching_mode: strict
+              url: https://gitlab.${DOMAIN_4}/users/auth/openid_connect/callback
+          signing_key: !Find [authentik_crypto.certificatekeypair, [name, authentik Self-signed Certificate]]
+          sub_mode: hashed_user_id
+          issuer_mode: per_provider
+          include_claims_in_id_token: true
+      - id: gitlab-application
+        model: authentik_core.application
+        state: present
+        identifiers:
+          slug: gitlab
+        attrs:
+          name: GitLab
+          provider: !KeyOf gitlab-provider
+          meta_launch_url: https://gitlab.${DOMAIN_4}
+          policy_engine_mode: any
+      - model: authentik_policies.policybinding
+        state: present
+        identifiers:
+          target: !KeyOf gitlab-application
+          policy: !KeyOf gitlab-access-policy
+        attrs:
+          target: !KeyOf gitlab-application
+          policy: !KeyOf gitlab-access-policy
+          enabled: true
+          order: 0

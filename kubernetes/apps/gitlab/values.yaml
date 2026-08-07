@@ -56,6 +56,20 @@ global:
   appConfig:
     initialDefaults:
       signupEnabled: false
+    omniauth:
+      enabled: true
+      autoSignInWithProvider: openid_connect
+      syncProfileFromProvider:
+        - openid_connect
+      syncProfileAttributes:
+        - email
+        - name
+      allowSingleSignOn:
+        - openid_connect
+      blockAutoCreatedUsers: false
+      providers:
+        - secret: gitlab-oidc
+          key: provider
     object_store:
       enabled: true
       proxy_download: true
