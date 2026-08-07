@@ -16,3 +16,5 @@ spec:
     - secretName: wildcard-tls-domain-1
     - secretName: wildcard-tls-domain-2
     - secretName: wildcard-tls-domain-3
+    - secretName: wildcard-tls-domain-4
+    - secretName: wildcard-tls-domain-4-pages
