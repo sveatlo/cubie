@@ -87,6 +87,7 @@ spec:
         - name: garage
           image: docker.io/dxflrs/garage:v2.3.0
           imagePullPolicy: IfNotPresent
+          command: ["/garage"]
           args: ["-c", "/etc/garage/garage.toml", "server"]
           env:
             - name: GARAGE_RPC_SECRET
