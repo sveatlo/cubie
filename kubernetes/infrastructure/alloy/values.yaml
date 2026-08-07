@@ -67,9 +67,16 @@ alloy:
           // bundle.
           download = false
 
+          // Tenants at `<slug>.${DOMAIN_2}` do not symbolicate.
+          // A prefix cannot cover a variable first label.
+          // The fix is one canonical asset host, klerigo-app/main#469.
+          //
+          // `path` is in-cluster because the public name resolves to Cloudflare
+          // from inside the cluster too.
+          // Fetching it would leave the node and come back through the ingress.
           location {
             minified_path_prefix = "https://app.${DOMAIN_2}/"
-            path                 = "https://app.${DOMAIN_2}/"
+            path                 = "http://klerigo-web.klerigo.svc.cluster.local:8080/"
           }
 
           cache {
