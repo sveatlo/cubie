@@ -1,0 +1,50 @@
+---
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: gitlab-db
+  namespace: gitlab
+spec:
+  instances: 1
+  imageName: ghcr.io/cloudnative-pg/postgresql:17.5-202506020807-standard-bookworm
+  postgresql:
+    shared_preload_libraries:
+      - pg_stat_statements
+    parameters:
+      shared_buffers: "512MB"
+      effective_cache_size: "1536MB"
+      wal_level: replica
+  storage:
+    size: 10Gi
+    storageClass: nfs
+  bootstrap:
+    initdb:
+      database: gitlabhq_production
+      owner: gitlab
+      secret:
+        name: gitlab-db
+      encoding: UTF8
+      localeCType: C
+      localeCollate: C
+---
+apiVersion: postgresql.cnpg.io/v1
+kind: Database
+metadata:
+  name: gitlab
+  namespace: gitlab
+spec:
+  name: gitlabhq_production
+  owner: gitlab
+  cluster:
+    name: gitlab-db
+  extensions:
+    - name: amcheck
+      ensure: present
+    - name: btree_gist
+      ensure: present
+    - name: pg_trgm
+      ensure: present
+    - name: plpgsql
+      ensure: present
+    - name: pg_stat_statements
+      ensure: present
