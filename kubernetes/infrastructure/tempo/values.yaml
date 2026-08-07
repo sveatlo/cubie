@@ -29,6 +29,14 @@ tempo:
   # already holds, and remote-written into the existing Prometheus. This is what
   # makes Grafana's service-graph and RED-metrics panels work without the
   # application emitting anything extra.
+  #
+  # storage/traces_storage below point at extraVolumes.metrics-generator-local
+  # (emptyDir), not the NFS-backed `storage` PVC: the local-blocks flush queue
+  # does unlink-then-reopen on completed blocks, which isn't atomic on NFS and
+  # races queriers into "no such file or directory" (grafana/tempo#5224).
+  # Losing this emptyDir on pod reschedule just drops the recent-metrics
+  # cache; span-metrics/service-graphs are unaffected since those are
+  # remote-written to Prometheus separately.
   metricsGenerator:
     enabled: true
     remoteWriteUrl: http://kube-prometheus-stack-prometheus.monitoring.svc.cluster.local:9090/api/v1/write
@@ -39,9 +47,12 @@ tempo:
       local_blocks:
         flush_to_storage: true
     storage:
-      path: /var/tempo/metrics-generator/wal
+      path: /var/tempo-local/metrics-generator/wal
     traces_storage:
-      path: /var/tempo/metrics-generator/traces
+      path: /var/tempo-local/metrics-generator/traces
+  extraVolumeMounts:
+    - name: metrics-generator-local
+      mountPath: /var/tempo-local
   overrides:
     defaults:
       metrics_generator:
@@ -55,6 +66,10 @@ tempo:
       memory: 256Mi
     limits:
       memory: 2Gi
+
+extraVolumes:
+  - name: metrics-generator-local
+    emptyDir: {}
 
 persistence:
   enabled: true
