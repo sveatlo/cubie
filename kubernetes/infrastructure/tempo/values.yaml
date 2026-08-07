@@ -32,6 +32,12 @@ tempo:
   metricsGenerator:
     enabled: true
     remoteWriteUrl: http://kube-prometheus-stack-prometheus.monitoring.svc.cluster.local:9090/api/v1/write
+    # local-blocks powers Grafana Traces Drilldown's TraceQL metrics; writes
+    # queryable blocks to traces_storage below instead of just holding them
+    # in memory for the "recent" query path.
+    processor:
+      local_blocks:
+        flush_to_storage: true
     storage:
       path: /var/tempo/metrics-generator/wal
     traces_storage:
@@ -42,6 +48,7 @@ tempo:
         processors:
           - service-graphs
           - span-metrics
+          - local-blocks
   resources:
     requests:
       cpu: 100m
