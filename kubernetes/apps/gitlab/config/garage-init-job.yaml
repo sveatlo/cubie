@@ -94,7 +94,7 @@ spec:
             - name: GARAGE_ADMIN_ENDPOINT
               value: http://gitlab-garage-admin:3903
             - name: GARAGE_BUCKETS
-              value: gitlab-artifacts gitlab-lfs gitlab-uploads gitlab-packages gitlab-external-diffs gitlab-terraform-state gitlab-dependency-proxy gitlab-ci-secure-files gitlab-pages gitlab-registry gitlab-backups
+              value: gitlab-artifacts gitlab-lfs gitlab-uploads gitlab-packages gitlab-external-diffs gitlab-terraform-state gitlab-dependency-proxy gitlab-ci-secure-files gitlab-pages gitlab-registry gitlab-backups gitlab-backups-tmp
             - name: GARAGE_ADMIN_TOKEN
               valueFrom:
                 secretKeyRef:
