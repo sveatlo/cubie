@@ -188,6 +188,10 @@ configMaps:
           skip_external_ip_validation: true
         room:
           empty_timeout: 30
+          # Without this, a client's own SDK-internal reconnect against a
+          # room LiveKit already drained silently succeeds into a fresh,
+          # empty room instead of failing loudly. See klerigo ADR 0059.
+          auto_create: false
         webhook:
           # Must name a key present in LIVEKIT_KEYS. Signing under an absent
           # key breaks webhook delivery silently.
