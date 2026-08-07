@@ -28,3 +28,14 @@ resources:
     memory: 64Mi
   limits:
     memory: 512Mi
+
+# TEMPORARY. Deliberate breakage for klerigo-app/main#467, which asks for a
+# request to be diagnosed end to end in Grafana without kubectl. Revert as soon
+# as that walk is done.
+#
+# No such Service exists, so every gateway route that proxies vocabulary fails
+# to connect.
+services:
+  gateway:
+    env:
+      VOCABULARY_GRPC_URL: http://klerigo-vocabulary-gone:50055
