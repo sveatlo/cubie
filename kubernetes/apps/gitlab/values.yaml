@@ -256,7 +256,13 @@ gitlab-runner:
   install: true
   concurrent: 3
   replicas: 1
-  gitlabUrl: https://gitlab.${DOMAIN_4}
+  gitlabUrl: http://gitlab-webservice-default.gitlab.svc.cluster.local:8080
+  sessionServer:
+    enabled: true
+    serviceType: LoadBalancer
+    publicIP: 10.69.11.44
+    externalPort: 9000
+    internalPort: 8093
   rbac:
     create: true
   runners:
