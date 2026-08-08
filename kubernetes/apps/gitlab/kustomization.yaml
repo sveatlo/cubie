@@ -16,3 +16,15 @@ resources:
   - config/valkey.yaml
   - config/garage.yaml
   - config/garage-init-job.yaml
+
+patches:
+  - target:
+      group: autoscaling
+      version: v2
+      kind: HorizontalPodAutoscaler
+    patch: |-
+      $patch: delete
+      apiVersion: autoscaling/v2
+      kind: HorizontalPodAutoscaler
+      metadata:
+        name: unused
