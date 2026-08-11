@@ -41,7 +41,9 @@ statefulset:
         memory: 128Mi
       limits:
         cpu: 500m
-        memory: 512Mi
+        # act_runner buffers a job's whole log before shipping it, and a Rust
+        # build's output ran the 512Mi ceiling into an OOM kill mid-job.
+        memory: 1Gi
     # act_runner hands the daemon its own socket path when mounting it into job
     # containers, so it has to match the one the rootless daemon listens on.
     extraVolumeMounts:
