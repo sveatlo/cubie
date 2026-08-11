@@ -22,6 +22,12 @@ data:
         attrs:
           name: gitea
           client_type: confidential
+          # 2026.5 made grant types opt-in per provider, and a blueprint that
+          # omits them creates a provider that allows none - the authorize
+          # endpoint answers "Invalid grant_type for provider".
+          grant_types:
+            - authorization_code
+            - refresh_token
           # Credentials come from the environment (see global.env), so the
           # blueprint can live in git without carrying the secret.
           client_id: !Env AUTHENTIK_GITEA_CLIENT_ID
