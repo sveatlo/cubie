@@ -29,11 +29,11 @@ spec:
                   wave: "3"
           # Generator 2: find all directories under each path
           - git:
-              # The in-cluster service, not https://git.${DOMAIN_4}: that name
-              # resolves to the public address, so the repo-server would leave
-              # the network and come back as a non-LAN source that the lan-only
-              # middleware answers with 403.
-              repoURL: &repoURL http://gitea-http.gitea.svc.cluster.local:3000/mirkwood/cubie.git
+              # GitHub, not the Gitea that now hosts this repo: reading GitOps
+              # state out of a service this repo also deploys means a Gitea
+              # outage freezes every other app, including the sync that would
+              # bring Gitea back. Gitea push-mirrors here on every commit.
+              repoURL: &repoURL https://github.com/sveatlo/cubie.git
               revision: &revision HEAD
               directories:
                 - path: "{{ .basePath }}/*"

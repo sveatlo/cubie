@@ -11,7 +11,7 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: http://gitea-http.gitea.svc.cluster.local:3000/mirkwood/cubie.git
+    repoURL: https://github.com/sveatlo/cubie.git
     targetRevision: HEAD
     path: kubernetes/infrastructure/kube-prometheus-stack
   destination:
