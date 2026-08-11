@@ -14,6 +14,15 @@ data:
     metadata:
       name: gitea
     entries:
+      # Gitea reads its admin flag from the `groups` claim on every OIDC login
+      # (see the oauth source in kubernetes/apps/gitea/values.yaml). Membership
+      # is not declared here: the blueprint field takes database primary keys,
+      # which differ between installs, so members are added in the UI.
+      - model: authentik_core.group
+        state: present
+        identifiers:
+          name: gitea-admins
+
       - model: authentik_providers_oauth2.oauth2provider
         id: gitea-provider
         state: present

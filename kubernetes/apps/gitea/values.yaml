@@ -57,7 +57,15 @@ gitea:
       provider: openidConnect
       existingSecret: gitea-oauth
       autoDiscoverUrl: https://auth.${DOMAIN_0}/application/o/gitea/.well-known/openid-configuration
+      # `groups` rides along in the profile scope, so dropping it here would
+      # silently strip every user of their admin flag on the next login.
       scopes: "email profile"
+      # The chart kebab-cases these into flags for `gitea admin auth
+      # update-oauth`, which runs on every start. The group is created by the
+      # authentik blueprint; the flag is re-evaluated at each login, so it both
+      # grants and revokes.
+      groupClaimName: groups
+      adminGroup: gitea-admins
 
   config:
     server:
