@@ -13,3 +13,4 @@ helmCharts:
 
 resources:
   - config/cnpg-cluster.yaml
+  - config/blueprint-gitea.yaml

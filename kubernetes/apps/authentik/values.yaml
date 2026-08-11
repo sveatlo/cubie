@@ -16,6 +16,21 @@ global:
         secretKeyRef:
           name: authentik-secret
           key: smtp-password
+    # Consumed by config/blueprint-gitea.yaml through !Env.
+    - name: AUTHENTIK_GITEA_CLIENT_ID
+      valueFrom:
+        secretKeyRef:
+          name: gitea-oidc
+          key: client-id
+    - name: AUTHENTIK_GITEA_CLIENT_SECRET
+      valueFrom:
+        secretKeyRef:
+          name: gitea-oidc
+          key: client-secret
+
+blueprints:
+  configMaps:
+    - authentik-blueprint-gitea
 
 authentik:
   general:

@@ -6,7 +6,7 @@ namespace exists:
 
 ```sh
 hack/apply-secret.sh kubernetes/apps/gitea/config/gitea-admin.yaml.sops
-hack/apply-secret.sh kubernetes/apps/gitea/config/gitea-oauth.yaml.sops
+hack/apply-secret.sh kubernetes/apps/gitea/config/gitea-oidc.yaml.sops
 ```
 
 Postgres is not here: CNPG generates `gitea-db-app` from
@@ -21,19 +21,27 @@ resync, and the account password follows.
 This account exists for the admin panel — runner registration tokens, package
 cleanup — because those pages are reachable without going through Authentik.
 
-## gitea-oauth.yaml.sops
+## gitea-oidc.yaml.sops
 
-**Ships with `REPLACE_ME`.** Create the provider in Authentik first, then fill
-in `key` (client ID) and `secret` (client secret):
+One generated credential pair, written into two namespaces because both ends of
+the handshake need it: `gitea-oidc` in `authentik` (read as env by
+`kubernetes/apps/authentik/config/blueprint-gitea.yaml`, which declares the
+provider) and `gitea-oauth` in `gitea` (the client). They are in one file so
+the two copies cannot drift — a mismatch surfaces as a failed login, not as a
+config error.
+
+Nothing is clicked together in the Authentik UI: the provider, its redirect URI
+and the application (slug `gitea`, which the discovery URL is built from) all
+live in that blueprint.
+
+To rotate, edit both halves to the same new values and reapply:
 
 ```sh
-hack/edit-secret.sh kubernetes/apps/gitea/config/gitea-oauth.yaml.sops
+hack/edit-secret.sh kubernetes/apps/gitea/config/gitea-oidc.yaml.sops
+hack/apply-secret.sh kubernetes/apps/gitea/config/gitea-oidc.yaml.sops
+kubectl -n authentik rollout restart deploy/authentik-server deploy/authentik-worker
+kubectl -n gitea rollout restart deploy/gitea
 ```
-
-In Authentik: an OAuth2/OpenID provider with redirect URI
-`https://git.<DOMAIN_4>/user/oauth2/authentik/callback`, signing key set, bound
-to an application whose **slug is `gitea`** — `values.yaml` builds the discovery
-URL from that slug, so a different one silently breaks sign-in.
 
 Accounts are created on first sign-in (`ENABLE_AUTO_REGISTRATION`), and the
 Gitea username comes from the `nickname` claim. Registration through the web
