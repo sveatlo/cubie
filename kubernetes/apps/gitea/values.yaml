@@ -1,0 +1,125 @@
+---
+replicaCount: 1
+
+strategy:
+  # Repos, LFS and the package registry share one RWO volume, so a second pod
+  # can never attach while the first is still terminating.
+  type: Recreate
+
+service:
+  ssh:
+    port: 22
+
+ingress:
+  enabled: true
+  className: traefik
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    traefik.ingress.kubernetes.io/router.tls: "true"
+    traefik.ingress.kubernetes.io/router.middlewares: traefik-lan-only@kubernetescrd
+  hosts:
+    - host: git.${DOMAIN_4}
+      paths:
+        - path: /
+
+persistence:
+  enabled: true
+  size: 100Gi
+  storageClass: nfs
+
+resources:
+  requests:
+    cpu: 250m
+    memory: 512Mi
+  limits:
+    cpu: "2"
+    memory: 3Gi
+
+gitea:
+  admin:
+    existingSecret: gitea-admin
+    email: admin@${DOMAIN_4}
+    # The secret is the source of truth; rotating it and resyncing resets the
+    # account rather than leaving a stale password nobody knows.
+    passwordMode: keepUpdated
+
+  metrics:
+    enabled: true
+    serviceMonitor:
+      enabled: true
+
+  oauth:
+    - name: authentik
+      provider: openidConnect
+      existingSecret: gitea-oauth
+      autoDiscoverUrl: https://auth.${DOMAIN_0}/application/o/gitea/.well-known/openid-configuration
+      scopes: "email profile"
+
+  config:
+    server:
+      DOMAIN: git.${DOMAIN_4}
+      SSH_DOMAIN: git.${DOMAIN_4}
+      ROOT_URL: https://git.${DOMAIN_4}/
+      SSH_PORT: 22 # advertised in clone URLs
+      SSH_LISTEN_PORT: 2222 # rootless image cannot bind 22
+      LFS_START_SERVER: true
+
+    database:
+      DB_TYPE: postgres
+      # HOST/NAME/USER/PASSWD arrive as env vars, see additionalConfigFromEnvs.
+
+    service:
+      # Accounts come from Authentik only: the form is gone, but OIDC callbacks
+      # must still be allowed to create the account on first sign-in.
+      DISABLE_REGISTRATION: false
+      ALLOW_ONLY_EXTERNAL_REGISTRATION: true
+      SHOW_REGISTRATION_BUTTON: false
+      ENABLE_BASIC_AUTHENTICATION: true # package registry + CI push over HTTP
+
+    oauth2_client:
+      ENABLE_AUTO_REGISTRATION: true
+      ACCOUNT_LINKING: auto
+      UPDATE_AVATAR: true
+      USERNAME: nickname
+
+    openid:
+      ENABLE_OPENID_SIGNIN: false
+      ENABLE_OPENID_SIGNUP: false
+
+    actions:
+      ENABLED: true
+
+    packages:
+      ENABLED: true
+
+  additionalConfigFromEnvs:
+    - name: GITEA__database__HOST
+      value: gitea-db-rw:5432
+    - name: GITEA__database__NAME
+      value: gitea
+    - name: GITEA__database__USER
+      value: gitea
+    - name: GITEA__database__PASSWD
+      valueFrom:
+        secretKeyRef:
+          name: gitea-db-app
+          key: password
+
+# Postgres comes from CNPG (config/cnpg-cluster.yaml), not from the chart.
+postgresql:
+  enabled: false
+postgresql-ha:
+  enabled: false
+
+# No Valkey. One replica has nobody to share cache, session or queue state
+# with, so Gitea's on-disk defaults do the same job without a StatefulSet, a
+# PVC and a password that would have to live in git in plaintext.
+valkey-cluster:
+  enabled: false
+valkey:
+  enabled: false
+
+# Helm test hook. Nothing runs `helm test` here, and kustomize renders it as a
+# plain Pod that ArgoCD would dutifully create on every sync.
+test:
+  enabled: false
