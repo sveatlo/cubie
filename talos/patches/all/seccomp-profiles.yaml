@@ -1,7 +1,6 @@
 ---
-# Seccomp profile for rootless image builds in CI. The stock runtime default
-# blocks the namespace and mount syscalls rootless BuildKit needs, so the
-# runner pods select this profile via localhost/ci-buildkit.json instead.
+# The runtime default blocks the namespace and mount syscalls rootless
+# BuildKit needs. Runner pods select this profile instead.
 machine:
   seccompProfiles:
   - name: ci-buildkit.json

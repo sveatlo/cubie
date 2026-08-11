@@ -2,8 +2,7 @@
 replicaCount: 1
 
 strategy:
-  # Repos, LFS and the package registry share one RWO volume, so a second pod
-  # can never attach while the first is still terminating.
+  # One RWO volume, so a second pod cannot attach while the first terminates.
   type: Recreate
 
 service:
@@ -39,8 +38,7 @@ gitea:
   admin:
     existingSecret: gitea-admin
     email: admin@${DOMAIN_4}
-    # The secret is the source of truth; rotating it and resyncing resets the
-    # account rather than leaving a stale password nobody knows.
+    # Rotating the secret and resyncing resets the account password.
     passwordMode: keepUpdated
 
   metrics:
@@ -48,10 +46,8 @@ gitea:
     serviceMonitor:
       enabled: true
 
-  # The provider behind this URL is declared in
-  # kubernetes/apps/authentik/config/blueprint-gitea.yaml. The init container
-  # resolves the discovery document and exits non-zero if it 404s, so Gitea
-  # will not start before Authentik has applied that blueprint.
+  # The init container resolves the discovery document and exits non-zero on a
+  # 404, so Gitea will not start until Authentik serves this provider.
   oauth:
     - name: authentik
       provider: openidConnect

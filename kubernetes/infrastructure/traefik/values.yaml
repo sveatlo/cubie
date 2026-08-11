@@ -36,8 +36,8 @@ ports:
       trustedIPs:
         - 172.16.0.0/16
         - 172.17.0.0/16
-  # git-over-SSH for Gitea. Published as 22 on the LoadBalancer; the container
-  # itself cannot bind a privileged port, hence the 2222 split.
+  # git-over-SSH for Gitea. The container cannot bind a privileged port, so 22
+  # on the LoadBalancer arrives here as 2222.
   git-ssh:
     port: 2222
     exposedPort: 22

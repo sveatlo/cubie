@@ -13,15 +13,11 @@ global:
 
 statefulset:
   annotations:
-    # The runners poll Gitea on startup and crash-loop until it answers. Gitea
-    # itself renders without a wave annotation, which ArgoCD reads as wave 0,
-    # so this holds the runners back until it is up.
+    # Runners crash-loop until Gitea answers their registration, and Gitea
+    # renders at the default wave 0.
     argocd.argoproj.io/sync-wave: "1"
 
-  # One, not one per labelled node. Every node here is also a control-plane
-  # node, and two concurrent Rust builds pushed etcd into flapping health
-  # checks, which stalled CNPG reconciles and made the Gitea API intermittent.
-  # CI waits rather than the cluster wobbling.
+  # Two concurrent Rust builds on these control-plane nodes made etcd flap.
   replicas: 1
   timezone: Europe/Bratislava
 
@@ -46,11 +42,8 @@ statefulset:
       limits:
         cpu: 500m
         memory: 512Mi
-    # The chart gives the runner the socket at /var/run/docker.sock, but the
-    # rootless daemon knows it as /run/user/1000/docker.sock. act_runner passes
-    # its own path to the daemon when bind-mounting the socket into job
-    # containers, so the two have to agree or every job that shells out to
-    # docker gets an empty directory where the socket should be.
+    # act_runner hands the daemon its own socket path when mounting it into job
+    # containers, so it has to match the one the rootless daemon listens on.
     extraVolumeMounts:
       - name: docker-socket
         mountPath: /run/user/1000
@@ -75,10 +68,7 @@ statefulset:
     rootless: true
     uid: 1000
     tag: 29.5.2-dind-rootless
-    # The GitLab runner asked for 4 CPU / 7Gi on these builds, but it was not
-    # sharing a node with etcd. Three of six cores leaves the control plane
-    # enough to answer its own health checks; the image build caps rustc
-    # parallelism to stay inside the memory limit.
+    # Three of six cores leaves etcd enough to answer its health checks.
     resources:
       requests:
         cpu: "1"

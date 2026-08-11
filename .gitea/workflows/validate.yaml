@@ -62,9 +62,8 @@ jobs:
           echo "$REGISTRY_TOKEN" \
             | helm registry login "$REGISTRY_HOST" -u "$REGISTRY_USER" --password-stdin
 
-      # The same substitution the ArgoCD CMP does before it builds. Without it a
-      # chart whose repo URL carries a domain placeholder is fetched from a host
-      # that does not exist.
+      # The same substitution the ArgoCD CMP does. Without it, a chart whose
+      # repo URL carries a placeholder is fetched from a host that never exists.
       - name: Substitute domains
         env:
           DOMAIN_0: ${{ vars.DOMAIN_0 }}

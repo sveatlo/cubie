@@ -5,7 +5,6 @@ hostname: cubie-cp02
 auto: off
 ---
 machine:
-  # CI build capacity: act_runner pods are pinned here and on cp-01.
   nodeLabels:
     workload.gitea-runner: "true"
   network:
