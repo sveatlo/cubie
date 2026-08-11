@@ -28,7 +28,7 @@ configs:
 
   repositories:
     cubie:
-      url: https://github.com/sveatlo/cubie.git
+      url: http://gitea-http.gitea.svc.cluster.local:3000/mirkwood/cubie.git
       name: cubie
       type: git
 

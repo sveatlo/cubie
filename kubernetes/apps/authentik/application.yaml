@@ -11,7 +11,7 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: https://github.com/sveatlo/cubie.git
+    repoURL: http://gitea-http.gitea.svc.cluster.local:3000/mirkwood/cubie.git
     targetRevision: HEAD
     path: kubernetes/apps/authentik
   destination:
