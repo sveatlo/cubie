@@ -7,6 +7,7 @@ namespace exists:
 ```sh
 hack/apply-secret.sh kubernetes/apps/gitea/config/gitea-admin.yaml.sops
 hack/apply-secret.sh kubernetes/apps/gitea/config/gitea-oidc.yaml.sops
+hack/apply-secret.sh kubernetes/apps/gitea/config/gitea-runner-token.yaml.sops
 ```
 
 Postgres is not here: CNPG generates `gitea-db-app` from
@@ -46,3 +47,13 @@ kubectl -n gitea rollout restart deploy/gitea
 Accounts are created on first sign-in (`ENABLE_AUTO_REGISTRATION`), and the
 Gitea username comes from the `nickname` claim. Registration through the web
 form is off; Authentik is the only way in apart from the admin account above.
+
+## gitea-runner-token.yaml.sops
+
+The shared registration token the Actions runners present on startup, read by
+`values-actions.yaml` as `existingSecret`. Mint it in the admin panel under
+Site Administration → Actions → Runners → Create new Runner, which is why the
+local admin account above exists.
+
+Rotating it means re-registering: edit the secret, apply it, then
+`kubectl -n gitea rollout restart statefulset/gitea-actions-runner`.

@@ -12,6 +12,12 @@ global:
   storageClass: nfs
 
 statefulset:
+  annotations:
+    # The runners poll Gitea on startup and crash-loop until it answers. Gitea
+    # itself renders without a wave annotation, which ArgoCD reads as wave 0,
+    # so this holds the runners back until it is up.
+    argocd.argoproj.io/sync-wave: "1"
+
   # One per labelled node; the heavy jobs want most of a node each.
   replicas: 2
   timezone: Europe/Bratislava

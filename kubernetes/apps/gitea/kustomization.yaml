@@ -11,6 +11,17 @@ helmCharts:
     namespace: gitea
     valuesFile: values.yaml
 
+  # Upstream split the runners out of the gitea chart, so they need a second
+  # chart — but they belong to the same deployment unit and are kept in one
+  # namespace and one ArgoCD Application.
+  - name: actions
+    repo: oci://docker.gitea.com/charts
+    version: "0.1.2"
+    releaseName: gitea-actions
+    namespace: gitea
+    valuesFile: values-actions.yaml
+
 resources:
+  - namespace.yaml
   - config/cnpg-cluster.yaml
   - config/ingressroutetcp-ssh.yaml

@@ -165,6 +165,5 @@ _Every node runs both roles (`allowSchedulingOnControlPlanes: true`). The two la
 | 2 | CNPG operator | Database operator CRDs needed by apps |
 | 2 | Node Feature Discovery | Auto-labels nodes with hardware features |
 | 3 | kube-prometheus-stack | Monitoring after infra is ready |
-| 3 | Gitea | Serves this repo to ArgoCD; also needs Authentik for sign-in |
+| 3 | Gitea + Actions runners | Serves this repo to ArgoCD; also needs Authentik for sign-in. The runners ship in the same app, held back by an in-app wave because they crash-loop until Gitea answers their registration |
 | 3+ | Apps (authentik, etc.) | Workloads requiring the platform |
-| 4 | Gitea Actions runners | Crash-loop until Gitea answers their registration |
