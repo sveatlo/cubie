@@ -6,6 +6,10 @@ on:
     branches: [master]
   pull_request:
 
+concurrency:
+  group: validate-${{ gitea.ref }}
+  cancel-in-progress: true
+
 jobs:
   discover:
     name: Discover Helm charts
