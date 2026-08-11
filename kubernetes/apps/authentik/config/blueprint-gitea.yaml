@@ -14,14 +14,30 @@ data:
     metadata:
       name: gitea
     entries:
-      # Gitea reads its admin flag from the `groups` claim on every OIDC login
-      # (see the oauth source in kubernetes/apps/gitea/values.yaml). Membership
-      # is not declared here: the blueprint field takes database primary keys,
-      # which differ between installs, so members are added in the UI.
+      # Membership is not declared for either group: the blueprint field takes
+      # database primary keys, which differ between installs, so members are
+      # added in the UI.
+
+      # Holding the application's only policy binding, this group decides who
+      # may sign in at all.
       - model: authentik_core.group
+        id: group-app-gitea
         state: present
         identifiers:
-          name: gitea-admins
+          name: app_gitea
+
+      # Gitea reads its admin flag from the `groups` claim on every OIDC login
+      # (see the oauth source in kubernetes/apps/gitea/values.yaml). The parent
+      # link is what keeps admins from having to hold two memberships: a member
+      # of a child group counts as a member of the parent, so the binding on
+      # app_gitea already lets them through.
+      - model: authentik_core.group
+        id: group-app-gitea-admin
+        state: present
+        identifiers:
+          name: app_gitea_admin
+        attrs:
+          parent: !KeyOf group-app-gitea
 
       - model: authentik_providers_oauth2.oauth2provider
         id: gitea-provider
@@ -55,6 +71,7 @@ data:
             - !Find [authentik_providers_oauth2.scopemapping, [scope_name, profile]]
 
       - model: authentik_core.application
+        id: gitea-application
         state: present
         identifiers:
           slug: gitea
@@ -66,3 +83,14 @@ data:
           provider: !KeyOf gitea-provider
           meta_launch_url: https://git.${DOMAIN_4}/
           policy_engine_mode: any
+
+      # An application with no bindings is open to every user, so this is the
+      # entry that actually restricts Gitea.
+      - model: authentik_policies.policybinding
+        state: present
+        identifiers:
+          target: !KeyOf gitea-application
+          group: !KeyOf group-app-gitea
+        attrs:
+          order: 0
+          enabled: true

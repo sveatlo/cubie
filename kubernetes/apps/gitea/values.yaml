@@ -65,7 +65,7 @@ gitea:
       # authentik blueprint; the flag is re-evaluated at each login, so it both
       # grants and revokes.
       groupClaimName: groups
-      adminGroup: gitea-admins
+      adminGroup: app_gitea_admin
 
   config:
     server:
