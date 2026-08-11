@@ -37,6 +37,14 @@ statefulset:
       limits:
         cpu: 500m
         memory: 512Mi
+    # The chart gives the runner the socket at /var/run/docker.sock, but the
+    # rootless daemon knows it as /run/user/1000/docker.sock. act_runner passes
+    # its own path to the daemon when bind-mounting the socket into job
+    # containers, so the two have to agree or every job that shells out to
+    # docker gets an empty directory where the socket should be.
+    extraVolumeMounts:
+      - name: docker-socket
+        mountPath: /run/user/1000
     config: |
       log:
         level: info
@@ -45,6 +53,7 @@ statefulset:
       container:
         require_docker: true
         docker_timeout: 300s
+        docker_host: unix:///run/user/1000/docker.sock
       runner:
         capacity: 1
         timeout: 1h
