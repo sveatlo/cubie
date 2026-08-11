@@ -42,8 +42,14 @@ jobs:
 
       - uses: azure/setup-helm@v5
 
+      # Not setup-kustomize: that action resolves the release through the
+      # GitHub API, which on Gitea points at Gitea and 404s.
       - name: Install kustomize
-        uses: imranismail/setup-kustomize@v3
+        env:
+          KUSTOMIZE_VERSION: "5.8.1"
+        run: |
+          curl -fsSL "https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2Fv${KUSTOMIZE_VERSION}/kustomize_v${KUSTOMIZE_VERSION}_linux_amd64.tar.gz" \
+            | tar -xz -C /usr/local/bin kustomize
 
       # The klerigo chart is private. GITEA_TOKEN cannot read packages, so this
       # uses a PAT held as an org secret.
