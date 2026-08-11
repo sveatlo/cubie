@@ -18,8 +18,11 @@ statefulset:
     # so this holds the runners back until it is up.
     argocd.argoproj.io/sync-wave: "1"
 
-  # One per labelled node; the heavy jobs want most of a node each.
-  replicas: 2
+  # One, not one per labelled node. Every node here is also a control-plane
+  # node, and two concurrent Rust builds pushed etcd into flapping health
+  # checks, which stalled CNPG reconciles and made the Gitea API intermittent.
+  # CI waits rather than the cluster wobbling.
+  replicas: 1
   timezone: Europe/Bratislava
 
   nodeSelector:
@@ -72,12 +75,14 @@ statefulset:
     rootless: true
     uid: 1000
     tag: 29.5.2-dind-rootless
-    # Sized from what the GitLab runner actually needed: the Rust workspace
-    # build and the multi-stage image builds both asked for 4 CPU / 7Gi.
+    # The GitLab runner asked for 4 CPU / 7Gi on these builds, but it was not
+    # sharing a node with etcd. Three of six cores leaves the control plane
+    # enough to answer its own health checks; the image build caps rustc
+    # parallelism to stay inside the memory limit.
     resources:
       requests:
-        cpu: "2"
+        cpu: "1"
         memory: 4Gi
       limits:
-        cpu: "4"
+        cpu: "3"
         memory: 8Gi
