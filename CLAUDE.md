@@ -14,8 +14,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 | CNI | Flannel | Talos built-in, no chart needed |
 | Load Balancer | MetalLB | Layer 2 / ARP, homelab LAN |
 | Ingress | Traefik | Helm, HTTP→HTTPS redirect |
-| TLS | cert-manager + Let's Encrypt | AWS Route53 DNS-01 |
-| GitOps | ArgoCD | Self-managed, ApplicationSets |
+| TLS | cert-manager + Let's Encrypt | DNS-01: Cloudflare per zone, Route53 as the fallback solver |
+| GitOps | ArgoCD | Self-managed, ApplicationSets, reads from Gitea |
+| Git + CI | Gitea + Gitea Actions | `git.${DOMAIN_4}`, LAN-only, SSH on :22 |
 | Storage | NFS CSI driver | Single NFS server |
 | Database | CloudNativePG | Operator in infra, Clusters per-app |
 | Monitoring | kube-prometheus-stack | Prometheus + Grafana + AlertManager |
@@ -88,6 +89,8 @@ Key details:
 3. **`talosctl bootstrap` runs exactly once** — on cp-01 only, when etcd is first initialized.
 4. **`talos/configs/` is gitignored** — regenerate with `talos/scripts/gen-configs.sh` on demand.
 5. **Edit `.sops.yaml` before generating any secrets** — set your actual age public key.
+6. **Gitea has to come up before anything else can sync.** ArgoCD reads this repo from Gitea's in-cluster service, so on a cold boot nothing reconciles until the `gitea` app is healthy. Recover by bringing Gitea up by hand (`kubectl apply` its rendered manifests) rather than waiting on ArgoCD.
+7. **ArgoCD addresses Gitea by service, not by hostname.** `https://git.${DOMAIN_4}` resolves to the public address, so a pod reaching it leaves the network and comes back as a non-LAN source that the `lan-only` middleware rejects.
 
 ## Common Workflows
 
@@ -123,11 +126,13 @@ hack/kubeconfig.sh
 
 ## Node Inventory
 
-| Hostname | Role | IP | Proxmox VM ID | Disk |
-|----------|------|----|---------------|------|
-| cp-01 | control-plane + worker | | | |
+| Hostname | Role | IP | Node labels |
+|----------|------|----|-------------|
+| cubie-cp01 | control-plane + worker | 10.69.10.236 | `workload.gitea-runner` |
+| cubie-cp02 | control-plane + worker | 10.69.10.248 | `workload.gitea-runner` |
+| cubie-cp03 | control-plane + worker | 10.69.10.244 | |
 
-_Single-node cluster: cp-01 runs both control-plane and workloads (`allowSchedulingOnControlPlanes: true`). Fill in IP/VM ID/disk when provisioned._
+_Every node runs both roles (`allowSchedulingOnControlPlanes: true`). The two labelled nodes are where CI builds land; cp-03 is deliberately left out so a busy pipeline cannot starve the cluster._
 
 ## Network & Domains
 
@@ -160,4 +165,6 @@ _Single-node cluster: cp-01 runs both control-plane and workloads (`allowSchedul
 | 2 | CNPG operator | Database operator CRDs needed by apps |
 | 2 | Node Feature Discovery | Auto-labels nodes with hardware features |
 | 3 | kube-prometheus-stack | Monitoring after infra is ready |
+| 3 | Gitea | Serves this repo to ArgoCD; also needs Authentik for sign-in |
 | 3+ | Apps (authentik, etc.) | Workloads requiring the platform |
+| 4 | Gitea Actions runners | Crash-loop until Gitea answers their registration |
