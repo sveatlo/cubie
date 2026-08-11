@@ -13,6 +13,11 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 TALOS_DIR="$REPO_ROOT/talos"
 OUTPUT_DIR="$TALOS_DIR/configs"
+# Pinned to what the nodes actually run. Left unset, talosctl generates configs
+# for whatever version the local client ships, which rewrites machine config
+# fields the running Talos does not understand.
+TALOS_VERSION="v1.12.6"
+KUBERNETES_VERSION="1.35.2"
 DRY_RUN=false
 
 while [[ $# -gt 0 ]]; do
@@ -89,6 +94,8 @@ done
 
 # Generate base configs (controlplane + worker templates)
 talosctl gen config "$CLUSTER_NAME" "https://$VIP:6443" \
+    --talos-version "$TALOS_VERSION" \
+    --kubernetes-version "$KUBERNETES_VERSION" \
     --with-secrets "$TMP_SECRETS" \
     --output "$OUTPUT_DIR" \
     --output-types controlplane,worker \

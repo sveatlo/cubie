@@ -1,5 +1,13 @@
 ---
+apiVersion: v1alpha1
+kind: HostnameConfig
+hostname: cubie-cp01
+auto: off
+---
 machine:
+  # CI build capacity: act_runner pods are pinned here and on cp-02.
+  nodeLabels:
+    workload.gitea-runner: "true"
   network:
     interfaces:
       - interface: ens18

@@ -10,6 +10,9 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 CONFIGS_DIR="$REPO_ROOT/talos/configs"
 NODES_DIR="$REPO_ROOT/talos/nodes"
+# gen-configs.sh writes a talosconfig next to the machine configs; use it unless
+# the caller points at another one. The default ~/.talos/config is not this cluster.
+export TALOSCONFIG="${TALOSCONFIG:-$CONFIGS_DIR/talosconfig}"
 
 INSECURE_FLAG=""
 TARGET_NODE=""

@@ -1,4 +1,9 @@
 ---
+apiVersion: v1alpha1
+kind: HostnameConfig
+hostname: cubie-cp03
+auto: off
+---
 machine:
   network:
     interfaces:
