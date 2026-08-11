@@ -1,0 +1,68 @@
+---
+enabled: true
+
+# In-cluster URL. Going out through git.${DOMAIN_4} would send every runner
+# poll through Traefik's lan-only middleware, which the pod network is not.
+giteaRootURL: http://gitea-http.gitea.svc.cluster.local:3000
+
+existingSecret: gitea-runner-token
+existingSecretKey: token
+
+global:
+  storageClass: nfs
+
+statefulset:
+  # One per labelled node; the heavy jobs want most of a node each.
+  replicas: 2
+  timezone: Europe/Bratislava
+
+  nodeSelector:
+    workload.gitea-runner: "true"
+
+  # Rootless Docker builds inside a user namespace, which the runtime default
+  # profile blocks. talos/patches/all/seccomp-profiles.yaml ships this one.
+  securityContext:
+    seccompProfile:
+      type: Localhost
+      localhostProfile: profiles/ci-buildkit.json
+
+  persistence:
+    size: 30Gi
+
+  runner:
+    resources:
+      requests:
+        cpu: 100m
+        memory: 128Mi
+      limits:
+        cpu: 500m
+        memory: 512Mi
+    config: |
+      log:
+        level: info
+      cache:
+        enabled: true
+      container:
+        require_docker: true
+        docker_timeout: 300s
+      runner:
+        capacity: 1
+        timeout: 1h
+        labels:
+          - ubuntu-latest:docker://catthehacker/ubuntu:act-22.04
+          - ubuntu-22.04:docker://catthehacker/ubuntu:act-22.04
+          - ubuntu-24.04:docker://catthehacker/ubuntu:act-24.04
+
+  dind:
+    rootless: true
+    uid: 1000
+    tag: 29.5.2-dind-rootless
+    # Sized from what the GitLab runner actually needed: the Rust workspace
+    # build and the multi-stage image builds both asked for 4 CPU / 7Gi.
+    resources:
+      requests:
+        cpu: "2"
+        memory: 4Gi
+      limits:
+        cpu: "4"
+        memory: 8Gi
