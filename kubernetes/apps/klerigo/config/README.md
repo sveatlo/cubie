@@ -3,26 +3,27 @@
 Encrypted with SOPS and committed here, but **not** listed in
 `kustomization.yaml`, so ArgoCD never manages them. Apply them by hand:
 
-## ghcr credentials (two, in different namespaces)
+## Registry credentials (two, in different namespaces)
 
-The chart and the images are private and are fetched by two different things
-that authenticate separately: the repo-server renders the chart with helm, the
-kubelet pulls the images. Fixing only one leaves the other failing.
+The chart and the images live in Gitea's package registry, which is private,
+and they are fetched by two different things that authenticate separately: the
+repo-server renders the chart with helm, the kubelet pulls the images. Fixing
+only one leaves the other failing.
 
-Both ship with `REPLACE_ME` and need a **classic** PAT with `read:packages`.
-Fine-grained tokens cannot read GitHub Packages.
+Both hold a token for the `ci` user. Gitea's per-run `GITEA_TOKEN` cannot read
+packages, so this is a personal access token with `read:package`.
 
 ```sh
-hack/edit-secret.sh kubernetes/argocd/config/ghcr-registry-config.yaml.sops
-hack/edit-secret.sh kubernetes/apps/klerigo/config/ghcr-pull.yaml.sops
+hack/edit-secret.sh kubernetes/argocd/config/helm-registry-config.yaml.sops
+hack/edit-secret.sh kubernetes/apps/klerigo/config/gitea-pull.yaml.sops
 ```
 
-Put the GitHub username and the token in as `username` and `password`. Then
-apply both, and restart the repo-server so the sidecar rereads its mount:
+Both carry a docker config; the auth field is `base64("<user>:<token>")`. Apply
+them, then restart the repo-server so the sidecar rereads its mount:
 
 ```sh
-hack/apply-secret.sh kubernetes/argocd/config/ghcr-registry-config.yaml.sops
-hack/apply-secret.sh kubernetes/apps/klerigo/config/ghcr-pull.yaml.sops
+hack/apply-secret.sh kubernetes/argocd/config/helm-registry-config.yaml.sops
+hack/apply-secret.sh kubernetes/apps/klerigo/config/gitea-pull.yaml.sops
 kubectl -n argocd rollout restart deploy/argocd-repo-server
 ```
 

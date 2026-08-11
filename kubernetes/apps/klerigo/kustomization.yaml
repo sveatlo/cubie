@@ -5,7 +5,7 @@ helmCharts:
   # Application workloads. Chart and images are published together by klerigo's
   # CI, which also writes the version below.
   - name: klerigo
-    repo: oci://ghcr.io/klerigo-app
+    repo: oci://git.${DOMAIN_4}/klerigo
     version: "0.1.0-decfdfa"
     releaseName: klerigo
     namespace: klerigo

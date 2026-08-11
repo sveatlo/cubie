@@ -91,9 +91,9 @@ repoServer:
         name: cmp-kustomize-envsubst
     # Optional on purpose: without it only private-chart apps fail to render,
     # rather than the repo-server refusing to start and taking every app down.
-    - name: ghcr-registry-config
+    - name: helm-registry-config
       secret:
-        secretName: ghcr-registry-config
+        secretName: helm-registry-config
         optional: true
   # kustomize-envsubst CMP: builds with helm, then substitutes the ${DOMAIN_x}
   # vars from the SOPS-encrypted vars/domains.yaml.sops using the mounted age key.
@@ -116,7 +116,7 @@ repoServer:
           value: /tmp/helm/data
         - name: SOPS_AGE_KEY_FILE
           value: /helm-secrets-private-keys/key.txt
-        # Lets `helm pull` reach private OCI charts on ghcr.io.
+        # Lets `helm pull` reach the private OCI charts in Gitea's registry.
         - name: HELM_REGISTRY_CONFIG
           value: /helm-registry/config.json
       securityContext:
@@ -142,7 +142,7 @@ repoServer:
           mountPath: /gitops-tools
         - name: helm-secrets-private-keys
           mountPath: /helm-secrets-private-keys/
-        - name: ghcr-registry-config
+        - name: helm-registry-config
           mountPath: /helm-registry
           readOnly: true
   volumeMounts:

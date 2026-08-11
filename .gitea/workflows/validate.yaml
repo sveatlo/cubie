@@ -62,6 +62,25 @@ jobs:
           echo "$REGISTRY_TOKEN" \
             | helm registry login "$REGISTRY_HOST" -u "$REGISTRY_USER" --password-stdin
 
+      # The same substitution the ArgoCD CMP does before it builds. Without it a
+      # chart whose repo URL carries a domain placeholder is fetched from a host
+      # that does not exist.
+      - name: Substitute domains
+        env:
+          DOMAIN_0: ${{ vars.DOMAIN_0 }}
+          DOMAIN_1: ${{ vars.DOMAIN_1 }}
+          DOMAIN_2: ${{ vars.DOMAIN_2 }}
+          DOMAIN_3: ${{ vars.DOMAIN_3 }}
+          DOMAIN_4: ${{ vars.DOMAIN_4 }}
+        run: |
+          args=()
+          for v in DOMAIN_0 DOMAIN_1 DOMAIN_2 DOMAIN_3 DOMAIN_4; do
+            eval "val=\${$v:?missing $v}"
+            args+=(-e "s|\${$v}|$val|g")
+          done
+          find kubernetes -type f \( -name '*.yaml' -o -name '*.yml' \) -print0 \
+            | xargs -0 -r sed -i "${args[@]}"
+
       - name: Build ${{ matrix.chart }}
         env:
           CHART: ${{ matrix.chart }}
