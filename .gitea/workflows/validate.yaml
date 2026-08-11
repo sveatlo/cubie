@@ -1,0 +1,62 @@
+---
+name: validate
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+jobs:
+  discover:
+    name: Discover Helm charts
+    runs-on: ubuntu-latest
+    outputs:
+      charts: ${{ steps.find.outputs.charts }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Find kustomizations with helmCharts
+        id: find
+        run: |
+          charts=$(grep -rl 'helmCharts:' kubernetes/ \
+            | xargs -I{} dirname {} \
+            | sort -u \
+            | jq -R . | jq -sc .)
+          echo "charts=$charts" >> "$GITHUB_OUTPUT"
+
+  helm-schema:
+    name: Helm schema validation
+    needs: discover
+    runs-on: ubuntu-latest
+    env:
+      # kustomize's --enable-helm isolates HELM_CONFIG_HOME per build,
+      # making a prior helm registry login invisible to the subprocess.
+      # HELM_REGISTRY_CONFIG isn't part of that isolation, so pinning it
+      # here is what makes the login reach helm.
+      HELM_REGISTRY_CONFIG: /tmp/helm-registry-config.json
+    strategy:
+      matrix:
+        chart: ${{ fromJson(needs.discover.outputs.charts) }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: azure/setup-helm@v5
+
+      - name: Install kustomize
+        uses: imranismail/setup-kustomize@v3
+
+      # The klerigo chart is private. GITEA_TOKEN cannot read packages, so this
+      # uses a PAT held as an org secret.
+      - name: Log in to the package registry
+        env:
+          REGISTRY_USER: ${{ vars.REGISTRY_USER }}
+          REGISTRY_TOKEN: ${{ secrets.REGISTRY_TOKEN }}
+          REGISTRY_HOST: ${{ vars.REGISTRY_HOST }}
+        run: |
+          echo "$REGISTRY_TOKEN" \
+            | helm registry login "$REGISTRY_HOST" -u "$REGISTRY_USER" --password-stdin
+
+      - name: Build ${{ matrix.chart }}
+        env:
+          CHART: ${{ matrix.chart }}
+        run: kustomize build --enable-helm "$CHART"

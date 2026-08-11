@@ -24,6 +24,7 @@ spec:
           dnsZones:
             - "${DOMAIN_2}"
             - "${DOMAIN_3}"
+            - "${DOMAIN_4}"
         dns01:
           cloudflare:
             apiTokenSecretRef:
