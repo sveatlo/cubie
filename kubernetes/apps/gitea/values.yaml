@@ -48,12 +48,15 @@ gitea:
     serviceMonitor:
       enabled: true
 
-  oauth:
-    - name: authentik
-      provider: openidConnect
-      existingSecret: gitea-oauth
-      autoDiscoverUrl: https://auth.${DOMAIN_0}/application/o/gitea/.well-known/openid-configuration
-      scopes: "email profile"
+  # Authentik sign-in. The init container fetches the discovery document and
+  # refuses to start when it 404s, so this stays empty until the provider and
+  # an application with slug "gitea" exist in Authentik (see config/README.md).
+  oauth: []
+  #  - name: authentik
+  #    provider: openidConnect
+  #    existingSecret: gitea-oauth
+  #    autoDiscoverUrl: https://auth.${DOMAIN_0}/application/o/gitea/.well-known/openid-configuration
+  #    scopes: "email profile"
 
   config:
     server:
