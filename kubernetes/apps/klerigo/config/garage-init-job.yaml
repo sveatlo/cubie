@@ -52,7 +52,7 @@ data:
     AWS_ACCESS_KEY_ID="$GARAGE_ACCESS_KEY_ID" AWS_SECRET_ACCESS_KEY="$GARAGE_SECRET_ACCESS_KEY" \
     AWS_DEFAULT_REGION=garage AWS_EC2_METADATA_DISABLED=true \
       aws --endpoint-url "$GARAGE_S3_ENDPOINT" s3api put-bucket-cors --bucket "$GARAGE_BUCKET" \
-      --cors-configuration "{\"CORSRules\":[{\"AllowedOrigins\":[\"$WEB_ORIGIN\",\"$WEB_ORIGIN_WILDCARD\"],\"AllowedMethods\":[\"GET\",\"PUT\"],\"AllowedHeaders\":[\"*\"],\"MaxAgeSeconds\":3000}]}" >/dev/null
+      --cors-configuration "{\"CORSRules\":[{\"AllowedOrigins\":[\"*\"],\"AllowedMethods\":[\"GET\",\"PUT\"],\"AllowedHeaders\":[\"*\"],\"MaxAgeSeconds\":3000}]}" >/dev/null
 
     echo "garage-init: bootstrap complete"
 ---
@@ -101,10 +101,6 @@ spec:
               value: http://klerigo-garage:3900
             - name: GARAGE_BUCKET
               value: klerigo-media
-            - name: WEB_ORIGIN
-              value: https://app.${DOMAIN_2}
-            - name: WEB_ORIGIN_WILDCARD
-              value: https://*.${DOMAIN_2}
             - name: GARAGE_ADMIN_TOKEN
               valueFrom:
                 secretKeyRef:
