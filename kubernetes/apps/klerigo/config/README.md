@@ -36,6 +36,7 @@ private-chart apps failing to render rather than every app going down.
 hack/apply-secret.sh kubernetes/apps/klerigo/config/klerigo-db.yaml.sops
 hack/apply-secret.sh kubernetes/apps/klerigo/config/klerigo-app.yaml.sops
 hack/apply-secret.sh kubernetes/apps/klerigo/config/klerigo-smtp.yaml.sops
+hack/apply-secret.sh kubernetes/apps/klerigo/config/klerigo-expo.yaml.sops
 ```
 
 The namespace must exist first (`kubectl create namespace klerigo`), or ArgoCD
@@ -82,3 +83,8 @@ hack/edit-secret.sh kubernetes/apps/klerigo/config/klerigo-smtp.yaml.sops
 together they switch the mailer to authenticated STARTTLS, and notifications
 refuses to start with only one of them rather than quietly sending
 unauthenticated.
+
+## klerigo-expo.yaml.sops
+
+`klerigo-expo` holds Expo's access token under `access-token`. The notifications
+workload uses it as `EXPO_ACCESS_TOKEN` to authenticate requests to Expo's Push API.
