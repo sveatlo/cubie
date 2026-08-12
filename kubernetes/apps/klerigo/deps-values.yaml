@@ -66,6 +66,15 @@ controllers:
           repository: docker.io/library/redis
           tag: "7-alpine"
           pullPolicy: IfNotPresent
+        # The image's default `save` policy is what makes "no persistence"
+        # above a lie, and a dangerous one: /data belongs to the image's own
+        # redis uid (999), we run as 1000, so every bgsave fails on
+        # permissions, and stop-writes-on-bgsave-error then rejects *every*
+        # write with MISCONF. Reads keep working, which is why this looked
+        # healthy while calls' participant_joined webhook 500'd and no lesson
+        # could go live. Turning both engines off is the fix that matches the
+        # intent; chowning /data would only re-enable snapshots nobody wants.
+        args: ["redis-server", "--save", "", "--appendonly", "no"]
         securityContext:
           runAsNonRoot: true
           runAsUser: 1000
