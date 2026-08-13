@@ -6,7 +6,7 @@ helmCharts:
   # CI, which also writes the version below.
   - name: klerigo
     repo: oci://git.${DOMAIN_4}/klerigo
-    version: "0.1.0-f5caa63"
+    version: "0.1.0-4df7ee3"
     releaseName: klerigo
     namespace: klerigo
     valuesFile: values.yaml
