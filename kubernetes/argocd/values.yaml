@@ -100,7 +100,7 @@ repoServer:
   # Any var missing from the loop below stays in the output as a literal.
   extraContainers:
     - name: cmp-kustomize-envsubst
-      image: quay.io/argoproj/argocd:v3.5.0 # keep in sync with chart appVersion (9.4.17 -> v3.3.6)
+      image: quay.io/argoproj/argocd:v3.5.1 # keep in sync with chart appVersion (9.4.17 -> v3.3.6)
       imagePullPolicy: IfNotPresent
       command: ["/var/run/argocd/argocd-cmp-server"]
       env:
