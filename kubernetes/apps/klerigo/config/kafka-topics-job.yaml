@@ -36,7 +36,7 @@ spec:
           args:
             - |
               set -eu
-              for topic in identity courses calls; do
+              for topic in identity courses calls scheduler; do
                 /opt/kafka/bin/kafka-topics.sh \
                   --bootstrap-server klerigo-kafka:9092 \
                   --create --if-not-exists --partitions 1 --replication-factor 1 \
