@@ -50,6 +50,10 @@ spec:
         login: true
         passwordSecret:
           name: klerigo-db-calls
+      - name: scheduler
+        login: true
+        passwordSecret:
+          name: klerigo-db-scheduler
 
   # Backup — uncomment when S3-compatible storage is available:
   # backup:
@@ -108,5 +112,16 @@ metadata:
 spec:
   name: calls
   owner: calls
+  cluster:
+    name: klerigo-db
+---
+apiVersion: postgresql.cnpg.io/v1
+kind: Database
+metadata:
+  name: klerigo-scheduler
+  namespace: klerigo
+spec:
+  name: scheduler
+  owner: scheduler
   cluster:
     name: klerigo-db
