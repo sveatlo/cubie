@@ -18,9 +18,11 @@ metadata:
     # A Job's pod template is immutable, so editing the topic list below makes
     # every later sync fail to patch this object. Wave -1 runs before the rest,
     # so that failure strands the whole app on its last-deployed version.
-    # Replace deletes and recreates instead of patching. Safe to rerun: each
-    # topic is created with --if-not-exists.
-    argocd.argoproj.io/sync-options: Replace=true
+    # Replace on its own is not enough: it issues a replace, which a Job rejects
+    # because the live object carries a generated selector the manifest has not
+    # got. Force turns that into a delete and recreate. Safe to rerun, since
+    # each topic is created with --if-not-exists.
+    argocd.argoproj.io/sync-options: Replace=true,Force=true
 spec:
   backoffLimit: 20
   template:
