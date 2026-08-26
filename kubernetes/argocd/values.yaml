@@ -23,6 +23,12 @@ configs:
       - /spec/volumeName
       - /spec/storageClassName
 
+    # klerigo's deploy pipeline, which polls this app after pushing a version
+    # bump and fails the run if the cluster never gets there. apiKey only: it
+    # authenticates with a generated token and never signs in, so it inherits
+    # the readonly default below and cannot sync or delete anything.
+    accounts.ci: apiKey
+
   rbac:
     policy.default: role:readonly
 

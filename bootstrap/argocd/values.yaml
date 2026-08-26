@@ -17,6 +17,11 @@ configs:
     kustomize.buildOptions: "--enable-helm"
     # Resource tracking method - annotation is more reliable than label
     application.resourceTrackingMethod: annotation
+    # klerigo's deploy pipeline, which polls its app after pushing a version
+    # bump and fails the run if the cluster never gets there. apiKey only: it
+    # authenticates with a generated token and never signs in, so it inherits
+    # the readonly default below and cannot sync or delete anything.
+    accounts.ci: apiKey
 
   rbac:
     policy.default: role:readonly
