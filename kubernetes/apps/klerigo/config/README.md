@@ -36,7 +36,12 @@ private-chart apps failing to render rather than every app going down.
 hack/apply-secret.sh kubernetes/apps/klerigo/config/klerigo-db.yaml.sops
 hack/apply-secret.sh kubernetes/apps/klerigo/config/klerigo-app.yaml.sops
 hack/apply-secret.sh kubernetes/apps/klerigo/config/klerigo-smtp.yaml.sops
+hack/apply-secret.sh kubernetes/apps/klerigo/config/klerigo-expo.yaml.sops
 ```
+
+Every one of these has to be applied by hand after a namespace is recreated.
+Nothing in the cluster can rebuild them, and losing the namespace loses them
+all.
 
 The namespace must exist first (`kubectl create namespace klerigo`), or ArgoCD
 must have created it.
@@ -45,7 +50,7 @@ Edit any of them with `hack/edit-secret.sh <file>`.
 
 ## klerigo-db.yaml.sops
 
-Five `kubernetes.io/basic-auth` secrets, one per service database. CNPG needs
+One `kubernetes.io/basic-auth` secret per service database. CNPG needs
 `username` and `password` to create the managed role; the service reads
 `database-url`, because CNPG generates a connection URI only for
 `bootstrap.initdb` owners, never for managed roles.

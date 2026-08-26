@@ -1,5 +1,5 @@
 ---
-# One instance holding all five service databases, each with its own owning
+# One instance holding every service database, each with its own owning
 # role, so the services stay credential-isolated without a pod apiece.
 apiVersion: postgresql.cnpg.io/v1
 kind: Cluster
@@ -18,7 +18,7 @@ spec:
     size: 20Gi
     storageClass: nfs
 
-  # No application database here: the five below are created as Database
+  # No application database here: the ones below are created as Database
   # resources so none of them is privileged over the others.
   bootstrap:
     initdb:
@@ -54,6 +54,10 @@ spec:
         login: true
         passwordSecret:
           name: klerigo-db-scheduler
+      - name: ai
+        login: true
+        passwordSecret:
+          name: klerigo-db-ai
 
   # Backup — uncomment when S3-compatible storage is available:
   # backup:
@@ -123,5 +127,16 @@ metadata:
 spec:
   name: scheduler
   owner: scheduler
+  cluster:
+    name: klerigo-db
+---
+apiVersion: postgresql.cnpg.io/v1
+kind: Database
+metadata:
+  name: klerigo-ai
+  namespace: klerigo
+spec:
+  name: ai
+  owner: ai
   cluster:
     name: klerigo-db

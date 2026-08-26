@@ -10,6 +10,15 @@ defaultPodOptions:
     fsGroup: 1000
     fsGroupChangePolicy: OnRootMismatch
 
+# Declared rather than left to createDefaultServiceAccount, which names the
+# account after the release but gives no way to annotate it. Without a wave it
+# lands in 0, after the wave -2 broker whose pods cannot start without it, and
+# a rebuild from an empty namespace deadlocks.
+serviceAccount:
+  klerigo:
+    annotations:
+      argocd.argoproj.io/sync-wave: "-3"
+
 controllers:
   # Single-broker KRaft, replication factor 1 everywhere.
   # Synced before the topics job (wave -1) and the app deployments (wave 0,
@@ -229,8 +238,12 @@ persistence:
             readOnly: true
 
 service:
+  # The broker resolves its own quorum voter through this name, so it has to
+  # exist before the wave -2 statefulset rather than alongside it in wave 0.
   kafka:
     controller: kafka
+    annotations:
+      argocd.argoproj.io/sync-wave: "-3"
     ports:
       kafka:
         port: 9092

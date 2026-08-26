@@ -15,6 +15,12 @@ metadata:
   namespace: klerigo
   annotations:
     argocd.argoproj.io/sync-wave: "-1"
+    # A Job's pod template is immutable, so editing the topic list below makes
+    # every later sync fail to patch this object. Wave -1 runs before the rest,
+    # so that failure strands the whole app on its last-deployed version.
+    # Replace deletes and recreates instead of patching. Safe to rerun: each
+    # topic is created with --if-not-exists.
+    argocd.argoproj.io/sync-options: Replace=true
 spec:
   backoffLimit: 20
   template:
@@ -36,7 +42,7 @@ spec:
           args:
             - |
               set -eu
-              for topic in identity courses calls scheduler; do
+              for topic in identity courses calls scheduler ai; do
                 /opt/kafka/bin/kafka-topics.sh \
                   --bootstrap-server klerigo-kafka:9092 \
                   --create --if-not-exists --partitions 1 --replication-factor 1 \
