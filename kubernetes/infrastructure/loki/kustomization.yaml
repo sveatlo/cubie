@@ -12,7 +12,7 @@ helmCharts:
   # grafana-community at 6.55.0 and renumbered from there.
   - name: loki
     repo: https://grafana-community.github.io/helm-charts
-    version: "18.11.3"
+    version: "18.11.6"
     releaseName: loki
     namespace: monitoring
     valuesFile: values.yaml
