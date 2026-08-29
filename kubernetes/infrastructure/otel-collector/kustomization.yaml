@@ -11,13 +11,13 @@ namespace: monitoring
 helmCharts:
   - name: opentelemetry-collector
     repo: https://open-telemetry.github.io/opentelemetry-helm-charts
-    version: "0.171.0"
+    version: "0.172.0"
     releaseName: otel-collector-agent
     namespace: monitoring
     valuesFile: agent-values.yaml
   - name: opentelemetry-collector
     repo: https://open-telemetry.github.io/opentelemetry-helm-charts
-    version: "0.171.0"
+    version: "0.172.0"
     releaseName: otel-collector
     namespace: monitoring
     valuesFile: gateway-values.yaml
