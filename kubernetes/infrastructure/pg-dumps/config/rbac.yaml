@@ -1,0 +1,154 @@
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: pg-dumps
+  namespace: pg-dumps
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: pg-dumps-discover
+rules:
+  - apiGroups: ["postgresql.cnpg.io"]
+    resources: ["clusters"]
+    verbs: ["list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: pg-dumps-discover
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: pg-dumps-discover
+subjects:
+  - kind: ServiceAccount
+    name: pg-dumps
+    namespace: pg-dumps
+---
+# Granted per namespace so exec rights only reach namespaces that hold a CNPG cluster.
+# A new cluster needs a RoleBinding here, otherwise its dump fails and the job goes red.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: pg-dumps-exec
+rules:
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get"]
+  - apiGroups: [""]
+    resources: ["pods/exec"]
+    verbs: ["create"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: pg-dumps-exec
+  namespace: authentik
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: pg-dumps-exec
+subjects:
+  - kind: ServiceAccount
+    name: pg-dumps
+    namespace: pg-dumps
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: pg-dumps-exec
+  namespace: babybuddy
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: pg-dumps-exec
+subjects:
+  - kind: ServiceAccount
+    name: pg-dumps
+    namespace: pg-dumps
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: pg-dumps-exec
+  namespace: gitea
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: pg-dumps-exec
+subjects:
+  - kind: ServiceAccount
+    name: pg-dumps
+    namespace: pg-dumps
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: pg-dumps-exec
+  namespace: immich
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: pg-dumps-exec
+subjects:
+  - kind: ServiceAccount
+    name: pg-dumps
+    namespace: pg-dumps
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: pg-dumps-exec
+  namespace: klerigo
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: pg-dumps-exec
+subjects:
+  - kind: ServiceAccount
+    name: pg-dumps
+    namespace: pg-dumps
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: pg-dumps-exec
+  namespace: mealie
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: pg-dumps-exec
+subjects:
+  - kind: ServiceAccount
+    name: pg-dumps
+    namespace: pg-dumps
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: pg-dumps-exec
+  namespace: nextcloud
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: pg-dumps-exec
+subjects:
+  - kind: ServiceAccount
+    name: pg-dumps
+    namespace: pg-dumps
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: pg-dumps-exec
+  namespace: paperless
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: pg-dumps-exec
+subjects:
+  - kind: ServiceAccount
+    name: pg-dumps
+    namespace: pg-dumps
