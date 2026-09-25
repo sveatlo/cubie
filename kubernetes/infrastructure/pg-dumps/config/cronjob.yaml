@@ -1,0 +1,53 @@
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: pg-dumps
+  namespace: pg-dumps
+spec:
+  # Runs ahead of the 01:30 offsite sync of rapida/cubie on the NAS, which carries these dumps off-site.
+  schedule: "30 0 * * *"
+  timeZone: Europe/Prague
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      activeDeadlineSeconds: 3600
+      template:
+        spec:
+          serviceAccountName: pg-dumps
+          restartPolicy: Never
+          securityContext:
+            runAsNonRoot: true
+            # Owner of the _pgdumps directory on the NAS, whose NFS export does not squash uids.
+            runAsUser: 1000
+            runAsGroup: 1000
+          containers:
+            - name: pg-dumps
+              image: alpine/k8s:1.35.2
+              command: ["/scripts/dump.sh"]
+              env:
+                - name: HOME
+                  value: /tmp
+              resources:
+                requests:
+                  cpu: 50m
+                  memory: 64Mi
+                limits:
+                  memory: 256Mi
+              volumeMounts:
+                - name: dumps
+                  mountPath: /dumps
+                - name: scripts
+                  mountPath: /scripts
+          volumes:
+            - name: dumps
+              nfs:
+                server: 10.69.10.3
+                path: /mnt/rapida/cubie/_pgdumps
+            - name: scripts
+              configMap:
+                name: pg-dumps-script
+                defaultMode: 0555
