@@ -65,6 +65,8 @@ externalDatabase:
 
 redis:
   enabled: true
+  # Nextcloud only ever connects to the master service, so read replicas are dead weight.
+  architecture: standalone
   auth:
     enabled: false
 
