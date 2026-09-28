@@ -214,3 +214,8 @@ kubeApiServer:
         sourceLabels:
           - __name__
 
+kubelet:
+  serviceMonitor:
+    # The chart scrapes cAdvisor every 10s against a 30s global interval.
+    # Every rule and dashboard here reads cAdvisor through [5m] or $__rate_interval, so 30s loses nothing.
+    cAdvisorInterval: 30s
