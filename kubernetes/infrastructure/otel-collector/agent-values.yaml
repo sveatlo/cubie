@@ -31,6 +31,9 @@ config:
     zipkin: null
     otlp: null
     filelog:
+      # The 200ms default re-stats every container log five times a second.
+      # The whole cluster logs ~6 lines/s, so 1s costs at most a second of latency.
+      poll_interval: 1s
       # The logsCollection preset gives this receiver one `container` operator.
       # A list under `config` replaces the preset's outright rather than
       # appending to it, so container-parser has to be restated here.
