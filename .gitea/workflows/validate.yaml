@@ -32,12 +32,6 @@ jobs:
     name: Helm schema validation
     needs: discover
     runs-on: ubuntu-latest
-    env:
-      # kustomize's --enable-helm isolates HELM_CONFIG_HOME per build,
-      # making a prior helm registry login invisible to the subprocess.
-      # HELM_REGISTRY_CONFIG isn't part of that isolation, so pinning it
-      # here is what makes the login reach helm.
-      HELM_REGISTRY_CONFIG: /tmp/helm-registry-config.json
     strategy:
       matrix:
         chart: ${{ fromJson(needs.discover.outputs.charts) }}
@@ -54,17 +48,6 @@ jobs:
         run: |
           curl -fsSL "https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2Fv${KUSTOMIZE_VERSION}/kustomize_v${KUSTOMIZE_VERSION}_linux_amd64.tar.gz" \
             | tar -xz -C /usr/local/bin kustomize
-
-      # The klerigo chart is private. GITEA_TOKEN cannot read packages, so this
-      # uses a PAT held as an org secret.
-      - name: Log in to the package registry
-        env:
-          REGISTRY_USER: ${{ vars.REGISTRY_USER }}
-          REGISTRY_TOKEN: ${{ secrets.REGISTRY_TOKEN }}
-          REGISTRY_HOST: ${{ vars.REGISTRY_HOST }}
-        run: |
-          echo "$REGISTRY_TOKEN" \
-            | helm registry login "$REGISTRY_HOST" -u "$REGISTRY_USER" --password-stdin
 
       # The same substitution the ArgoCD CMP does. Without it, a chart whose
       # repo URL carries a placeholder is fetched from a host that never exists.

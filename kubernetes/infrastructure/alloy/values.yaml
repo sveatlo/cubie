@@ -58,26 +58,7 @@ alloy:
           // `https://*.${DOMAIN_2}` also matches
           // `https://attacker.tld/x?y=.${DOMAIN_2}/a.js`. That is an SSRF
           // primitive from a pod on the node that runs authentik.
-          //
-          // A `location` block fetches from a base URL fixed here instead, with
-          // only the path suffix coming from the payload, so the host can never
-          // be attacker-chosen. It also skips the `//# sourceMappingURL=`
-          // comment entirely, which means a `build.sourcemap: "hidden"` build
-          // still symbolicates — the map just has to be served next to the
-          // bundle.
           download = false
-
-          // Tenants at `<slug>.${DOMAIN_2}` do not symbolicate.
-          // A prefix cannot cover a variable first label.
-          // The fix is one canonical asset host, klerigo-app/main#469.
-          //
-          // `path` is in-cluster because the public name resolves to Cloudflare
-          // from inside the cluster too.
-          // Fetching it would leave the node and come back through the ingress.
-          location {
-            minified_path_prefix = "https://app.${DOMAIN_2}/"
-            path                 = "http://klerigo-web.klerigo.svc.cluster.local:8080/"
-          }
 
           cache {
             ttl = "24h"
