@@ -1,0 +1,46 @@
+---
+# --- Ollama: DISABLE bundled subchart ---
+ollama:
+  enabled: false
+
+# --- Point to standalone Ollama in the same namespace ---
+ollamaUrls:
+  - "http://ollama.ai.svc.cluster.local:11434"
+
+replicaCount: 1
+
+enableOpenaiApi: false
+
+persistence:
+  enabled: true
+  size: 10Gi
+  storageClass: nfs
+
+ingress:
+  enabled: true
+  class: traefik
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    traefik.ingress.kubernetes.io/router.tls: "true"
+  host: chat.${DOMAIN_0}
+
+sso:
+  enabled: true
+  enableSignup: true
+  mergeAccountsByEmail: true
+  oidc:
+    enabled: true
+    clientExistingSecret: ai-oidc-secret
+    clientExistingSecretKey: oidc-client-secret
+    clientIdExistingSecretKey: oidc-client-id
+    providerUrl: "https://auth.${DOMAIN_0}/application/o/open-webui/.well-known/openid-configuration"
+    providerName: "Mirkwood Auth"
+
+extraEnvVars:
+  - name: WEBUI_SECRET_KEY
+    valueFrom:
+      secretKeyRef:
+        name: ai-webui-secret
+        key: webui-secret-key
+  - name: ENABLE_LOGIN_FORM
+    value: "false"
