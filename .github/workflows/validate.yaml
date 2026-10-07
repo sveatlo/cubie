@@ -6,8 +6,11 @@ on:
     branches: [master]
   pull_request:
 
+permissions:
+  contents: read
+
 concurrency:
-  group: validate-${{ gitea.ref }}
+  group: validate-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -40,8 +43,6 @@ jobs:
 
       - uses: azure/setup-helm@v5
 
-      # Not setup-kustomize: that action resolves the release through the
-      # GitHub API, which on Gitea points at Gitea and 404s.
       - name: Install kustomize
         env:
           KUSTOMIZE_VERSION: "5.8.1"
@@ -49,15 +50,14 @@ jobs:
           curl -fsSL "https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2Fv${KUSTOMIZE_VERSION}/kustomize_v${KUSTOMIZE_VERSION}_linux_amd64.tar.gz" \
             | tar -xz -C /usr/local/bin kustomize
 
-      # The same substitution the ArgoCD CMP does. Without it, a chart whose
-      # repo URL carries a placeholder is fetched from a host that never exists.
+      # Render-only validation needs valid hostnames, not the cluster's real domains.
       - name: Substitute domains
         env:
-          DOMAIN_0: ${{ vars.DOMAIN_0 }}
-          DOMAIN_1: ${{ vars.DOMAIN_1 }}
-          DOMAIN_2: ${{ vars.DOMAIN_2 }}
-          DOMAIN_3: ${{ vars.DOMAIN_3 }}
-          DOMAIN_4: ${{ vars.DOMAIN_4 }}
+          DOMAIN_0: domain-0.example.test
+          DOMAIN_1: domain-1.example.test
+          DOMAIN_2: domain-2.example.test
+          DOMAIN_3: domain-3.example.test
+          DOMAIN_4: domain-4.example.test
         run: |
           args=()
           for v in DOMAIN_0 DOMAIN_1 DOMAIN_2 DOMAIN_3 DOMAIN_4; do

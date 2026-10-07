@@ -29,10 +29,7 @@ spec:
                   wave: "3"
           # Generator 2: find all directories under each path
           - git:
-              # GitHub, not the Gitea that now hosts this repo: reading GitOps
-              # state out of a service this repo also deploys means a Gitea
-              # outage freezes every other app, including the sync that would
-              # bring Gitea back. Gitea push-mirrors here on every commit.
+              # Hosting GitOps state outside the cluster lets ArgoCD recover Gitea.
               repoURL: &repoURL https://github.com/sveatlo/cubie.git
               revision: &revision HEAD
               directories:

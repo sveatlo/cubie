@@ -2,6 +2,10 @@
 
 GitOps-driven Kubernetes cluster running on Talos Linux (Proxmox VMs).
 
+GitHub (`sveatlo/cubie`) is the source of truth. ArgoCD reads this repository
+directly from GitHub. GitHub Actions validates chart renders on pushes to
+`master` and pull requests, using placeholder domains without cluster secrets.
+
 ## Stack
 
 | Layer | Tool |
