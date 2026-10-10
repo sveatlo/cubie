@@ -6,8 +6,9 @@ from urllib.request import urlopen
 home = Path("/opt/data")
 for directory in ("workspace", "tools", "alerts"):
     (home / directory).mkdir(parents=True, exist_ok=True)
-for name in ("config.yaml", "SOUL.md"):
-    shutil.copyfile(Path("/config") / name, home / name)
+shutil.copyfile(Path("/config/config.yaml"), home / "config.yaml")
+if not (home / "SOUL.md").exists():
+    shutil.copyfile(Path("/config/SOUL.md"), home / "SOUL.md")
 (home / ".gitconfig").write_text(
     '[credential "https://github.com"]\n'
     '    helper = !/opt/hermes/.venv/bin/python /config/git-credential.py\n'
