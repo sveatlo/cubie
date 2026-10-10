@@ -49,6 +49,14 @@ Only one Telegram gateway may poll this bot. Stop any old poller before rerunnin
 
 Repository changes must land in the GitOps source for durable reconciliation. ArgoCD currently watches GitHub `HEAD`. Merge them yourself; the agent must not merge or push to `main` or `master`. Until then, the manually started gateway is staged and the new Alertmanager route is inactive. Applying monitoring changes manually can be undone by ArgoCD.
 
+## Editable identity
+
+Hermes loads `/opt/data/SOUL.md` from the writable PVC mounted at `/opt/data`. The repository's `SOUL.md` is only a first-boot seed: initialization copies it when the runtime file is missing and leaves an existing file untouched, including an empty file. Agent edits therefore survive container restarts and deployments. `config.yaml` remains Git-managed and is refreshed on startup.
+
+Keep the directory mount rather than a single-file `subPath` mount so editors can replace the file atomically. Changes to the Git seed do not update an existing runtime identity. To reset it intentionally, back up the runtime file, remove it, and restart Hermes. Deleting the PVC without restoring its backup also loses the edited identity.
+
+SOUL changes take effect in new Hermes sessions; an existing session keeps its frozen prompt.
+
 ## SSH targets
 
 The public key is `id_ed25519.pub`. Its fingerprint is:
@@ -96,7 +104,7 @@ Delivery retries reuse the saved report rather than rerunning the model. Each ac
 
 The operator has `cluster-admin` and the supplied Talos, GitHub, and Proxmox permissions. Ask-before-write and sanitized diagnostics are trust-based instructions, not a complete enforcement boundary. Native manual approvals catch only recognized dangerous commands. Broad credentials mean accidental or malicious operations remain possible.
 
-The NFS PVC holds OAuth refresh tokens, the copied SSH key, conversations, memory, skills, workspaces, and incident reports. Git encryption does not encrypt that runtime data. Protect and back up the NAS accordingly. Never include raw credential files, Secret values, or environment dumps in model prompts, logs, or Telegram reports.
+The NFS PVC holds OAuth refresh tokens, the copied SSH key, the editable SOUL identity, conversations, memory, skills, workspaces, and incident reports. Git encryption does not encrypt that runtime data. Protect and back up the NAS accordingly. Never include raw credential files, Secret values, or environment dumps in model prompts, logs, or Telegram reports.
 
 ## Checks
 
@@ -110,6 +118,7 @@ kubectl kustomize kubernetes/apps/ai/hermes
 ## References
 
 - [Pinned Hermes image](https://github.com/NousResearch/hermes-agent/blob/v0.21.6/Dockerfile)
+- [Hermes personality and SOUL](https://github.com/NousResearch/hermes-agent/blob/v0.21.6/website/docs/user-guide/features/personality.md)
 - [Hermes providers](https://hermes-agent.nousresearch.com/docs/integrations/providers/)
 - [Hermes browser](https://hermes-agent.nousresearch.com/docs/user-guide/features/browser/)
 - [Proxmox API tokens](https://pve.proxmox.com/wiki/User_Management#_api_tokens)
