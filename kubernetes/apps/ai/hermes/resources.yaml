@@ -39,6 +39,40 @@ spec:
       port: 8644
       targetPort: alerts
 ---
+apiVersion: v1
+kind: Service
+metadata:
+  name: hermes-dashboard
+spec:
+  selector:
+    app: hermes
+  ports:
+    - name: dashboard
+      port: 9119
+      targetPort: dashboard
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: hermes-dashboard
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    traefik.ingress.kubernetes.io/router.tls: "true"
+    traefik.ingress.kubernetes.io/router.middlewares: traefik-lan-only@kubernetescrd
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: hermes.${DOMAIN_0}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: hermes-dashboard
+                port:
+                  name: dashboard
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -109,6 +143,29 @@ spec:
               value: /credentials/talosconfig
             - name: PATH
               value: /opt/data/tools:/opt/hermes/bin:/opt/hermes/.venv/bin:/usr/local/bin:/usr/bin:/bin
+            - name: HERMES_DASHBOARD
+              value: "true"
+            - name: HERMES_DASHBOARD_HOST
+              value: 0.0.0.0
+            - name: HERMES_DASHBOARD_PORT
+              value: "9119"
+          ports:
+            - name: dashboard
+              containerPort: 9119
+          startupProbe:
+            exec: &dashboardCheck
+              command: [/opt/hermes/.venv/bin/python, -c, "from urllib.request import urlopen; urlopen('http://127.0.0.1:9119/api/status', timeout=2).close()"]
+            timeoutSeconds: 3
+            periodSeconds: 2
+            failureThreshold: 60
+          readinessProbe:
+            exec: *dashboardCheck
+            timeoutSeconds: 3
+            periodSeconds: 10
+          livenessProbe:
+            exec: *dashboardCheck
+            timeoutSeconds: 3
+            periodSeconds: 20
           resources:
             requests:
               cpu: 250m
