@@ -1,0 +1,9 @@
+Host *
+    IdentityFile /opt/data/.ssh/id_ed25519
+    IdentitiesOnly yes
+    BatchMode yes
+    StrictHostKeyChecking yes
+    UserKnownHostsFile /opt/data/.ssh/known_hosts
+    ForwardAgent no
+    ForwardX11 no
+    ConnectTimeout 10
