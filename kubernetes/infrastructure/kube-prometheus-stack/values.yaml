@@ -130,6 +130,7 @@ alertmanager:
   alertmanagerSpec:
     secrets:
       - alertmanager-smtp-password
+      - hermes-alert-webhook
     resources:
       requests:
         cpu: 25m
@@ -155,8 +156,28 @@ alertmanager:
 
     route:
       receiver: "default"
+      routes:
+        - receiver: "hermes"
+          matchers:
+            - 'severity=~"warning|critical"'
+          group_by: [alertname, namespace]
+          group_wait: 1m
+          group_interval: 10m
+          repeat_interval: 4h
+          continue: true
+        - receiver: "default"
 
     receivers:
+      - name: "hermes"
+        webhook_configs:
+          - url: http://hermes-alerts.ai.svc.cluster.local:8644/alerts
+            send_resolved: false
+            max_alerts: 100
+            http_config:
+              authorization:
+                type: Bearer
+                credentials_file: /etc/alertmanager/secrets/hermes-alert-webhook/token
+
       - name: "default"
         email_configs:
           - to: "sysadmin@${DOMAIN_0}"

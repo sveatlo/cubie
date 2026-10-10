@@ -1,0 +1,30 @@
+model:
+  provider: openai-codex
+  default: gpt-6.1-sol
+agent:
+  max_turns: 25
+  run_budget_seconds: 600
+terminal:
+  backend: local
+  cwd: /opt/data/workspace
+approvals:
+  mode: manual
+  unattended_mode: deny
+  single_query_mode: deny
+  cron_mode: deny
+gateway:
+  unauthorized_dm_behavior: ignore
+platform_toolsets:
+  telegram:
+    - terminal
+    - file
+    - browser
+browser:
+  cloud_provider: local
+  backend: "off"
+  engine: chrome
+  cdp_url: http://127.0.0.1:9222
+  allow_private_urls: true
+  inactivity_timeout: 120
+telegram:
+  require_mention: true

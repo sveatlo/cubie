@@ -1,0 +1,18 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: ai
+resources:
+  - resources.yaml
+configMapGenerator:
+  - name: hermes-config
+    files:
+      - config.yaml
+      - SOUL.md
+      - init.py
+      - alert_adapter.py
+      - ssh-config
+      - known_hosts
+      - id_ed25519.pub
+      - smoke_test.py
+      - git-credential.py
+      - browser.py

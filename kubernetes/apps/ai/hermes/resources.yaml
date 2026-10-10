@@ -1,0 +1,239 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: hermes
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: hermes
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: cluster-admin
+subjects:
+  - kind: ServiceAccount
+    name: hermes
+    namespace: ai
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: hermes
+spec:
+  accessModes: [ReadWriteOnce]
+  storageClassName: nfs
+  resources:
+    requests:
+      storage: 5Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: hermes-alerts
+spec:
+  selector:
+    app: hermes
+  ports:
+    - name: alerts
+      port: 8644
+      targetPort: alerts
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hermes
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: hermes
+  template:
+    metadata:
+      labels:
+        app: hermes
+    spec:
+      serviceAccountName: hermes
+      automountServiceAccountToken: false
+      nodeSelector:
+        kubernetes.io/arch: amd64
+      securityContext:
+        fsGroup: 10000
+      initContainers:
+        - name: configure
+          image: &image docker.io/nousresearch/hermes-agent:v0.21.6@sha256:55e192fba0cd4fde61142abbff5adeacff40efdb482ccd0ff877924bd274f909
+          command: [/opt/hermes/.venv/bin/python, /config/init.py]
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 10000
+            runAsGroup: 10000
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: [ALL]
+            seccompProfile:
+              type: RuntimeDefault
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              memory: 512Mi
+          volumeMounts:
+            - name: data
+              mountPath: /opt/data
+            - name: config
+              mountPath: /config
+              readOnly: true
+            - name: ssh
+              mountPath: /ssh
+              readOnly: true
+      containers:
+        - name: gateway
+          image: *image
+          args: [gateway, run]
+          envFrom:
+            - secretRef:
+                name: hermes-credentials
+          env: &env
+            - name: HERMES_UID
+              value: "10000"
+            - name: HERMES_GID
+              value: "10000"
+            - name: HERMES_HOME
+              value: /opt/data
+            - name: HOME
+              value: /opt/data
+            - name: TALOSCONFIG
+              value: /credentials/talosconfig
+            - name: PATH
+              value: /opt/data/tools:/opt/hermes/bin:/opt/hermes/.venv/bin:/usr/local/bin:/usr/bin:/bin
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              memory: 2Gi
+          volumeMounts: &mounts
+            - name: data
+              mountPath: /opt/data
+            - name: config
+              mountPath: /config
+              readOnly: true
+            - name: talos
+              mountPath: /credentials
+              readOnly: true
+            - name: kube-api
+              mountPath: /var/run/secrets/kubernetes.io/serviceaccount
+              readOnly: true
+        - name: alerts
+          image: *image
+          command: [/opt/hermes/.venv/bin/python, /config/alert_adapter.py]
+          envFrom:
+            - secretRef:
+                name: hermes-credentials
+          env: *env
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 10000
+            runAsGroup: 10000
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: [ALL]
+            seccompProfile:
+              type: RuntimeDefault
+          ports:
+            - name: alerts
+              containerPort: 8644
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: alerts
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: alerts
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              memory: 2Gi
+          volumeMounts: *mounts
+        - name: browser
+          image: *image
+          command: [/opt/hermes/.venv/bin/python, /config/browser.py]
+          env:
+            - name: HOME
+              value: /tmp/browser
+            - name: HERMES_HOME
+              value: /tmp/browser
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 10001
+            runAsGroup: 10001
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+            seccompProfile:
+              type: RuntimeDefault
+          startupProbe:
+            exec: &browserCheck
+              command: [/opt/hermes/.venv/bin/python, -c, "from urllib.request import urlopen; urlopen('http://127.0.0.1:9222/json/version', timeout=2).close()"]
+            periodSeconds: 2
+            failureThreshold: 30
+          readinessProbe:
+            exec: *browserCheck
+            periodSeconds: 10
+          livenessProbe:
+            exec: *browserCheck
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              memory: 1Gi
+          volumeMounts:
+            - name: config
+              mountPath: /config
+              readOnly: true
+            - name: browser-tmp
+              mountPath: /tmp
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: hermes
+        - name: config
+          configMap:
+            name: hermes-config
+        - name: talos
+          secret:
+            secretName: hermes-talos
+            defaultMode: 0440
+        - name: ssh
+          secret:
+            secretName: hermes-ssh
+            defaultMode: 0440
+        - name: browser-tmp
+          emptyDir:
+            sizeLimit: 1Gi
+        - name: kube-api
+          projected:
+            defaultMode: 0440
+            sources:
+              - serviceAccountToken:
+                  path: token
+                  expirationSeconds: 3600
+              - configMap:
+                  name: kube-root-ca.crt
+                  items:
+                    - key: ca.crt
+                      path: ca.crt
+              - downwardAPI:
+                  items:
+                    - path: namespace
+                      fieldRef:
+                        fieldPath: metadata.namespace
