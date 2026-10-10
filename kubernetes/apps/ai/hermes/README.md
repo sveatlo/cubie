@@ -47,7 +47,19 @@ Restore the sensitive PVC backup separately. If its OAuth state is lost, the own
 
 Only one Telegram gateway may poll this bot. Stop any old poller before rerunning Telegram verification. Do not leave a login pod running alongside the final Deployment.
 
-Repository changes must land in the GitOps source for durable reconciliation. ArgoCD currently watches GitHub `HEAD`. Merge them yourself; the agent must not merge or push to `main` or `master`. Until then, the manually started gateway is staged and the new Alertmanager route is inactive. Applying monitoring changes manually can be undone by ArgoCD.
+Repository changes must land in the GitOps source for durable reconciliation. ArgoCD currently watches GitHub `HEAD`. Merge them yourself; the agent must not merge or push to `main` or `master`. Let ArgoCD reconcile the affected applications after merging. Applying monitoring changes manually can be undone by ArgoCD.
+
+## LAN-only dashboard
+
+Open `https://hermes.${DOMAIN_0}` from the LAN and sign in through Authentik as `sveatlo`. Traefik terminates HTTPS with the existing wildcard certificate and applies `traefik-lan-only@kubernetescrd`, which allows source addresses in `10.69.0.0/16`. The dashboard Service is ClusterIP-only on port `9119`; no public LoadBalancer or NodePort is added.
+
+The official image's s6 supervisor runs the dashboard alongside the Telegram gateway as UID `10000`. Startup/readiness/liveness probes check its public `/api/status` endpoint. The dashboard shares the operator's PVC, credentials and permissions, so an authenticated dashboard session is an operator session, not a read-only monitoring view.
+
+Authentik provisions a public OIDC client named `hermes-dashboard` through its Git-managed blueprint. Login uses authorization-code PKCE, an asymmetric signing key and the exact callback `https://hermes.${DOMAIN_0}/auth/callback`. The application's user binding admits only `sveatlo`; other SSO accounts are not granted access. No client secret or separate dashboard password is needed. Update the blueprint if the owner account is renamed.
+
+`dashboard.public_url` fixes the callback URL and allowed browser origin. The dashboard trusts forwarded proxy metadata from the Flannel pod CIDR `10.244.0.0/16` so Traefik's changing pod IP can convey the HTTPS scheme and produce Secure cookies. That trusts other cluster pods' forwarding metadata too, not just Traefik. LAN filtering happens at the Ingress; in-cluster direct access still relies on the native login gate. Do not expose the dashboard Service outside the cluster or widen proxy trust to `*` or `/0`.
+
+Dashboard edits to `SOUL.md` persist on the PVC. Dashboard edits to `config.yaml` remain subject to the Git-managed startup refresh. After reconciliation, verify the owner login, unauthenticated API rejection, Secure cookies, WebSocket access, and a denied non-LAN request. Neither an authenticated browser session nor a successful owner login is implied by a passing `/api/status` probe.
 
 ## Editable identity
 
@@ -108,6 +120,8 @@ The NFS PVC holds OAuth refresh tokens, the copied SSH key, the editable SOUL id
 
 ## Checks
 
+The manifest regression tests require Python with PyYAML, already used by the setup wizard.
+
 ```bash
 python -m unittest discover -s kubernetes/apps/ai/hermes -p 'test_*.py' -v
 kubectl kustomize kubernetes/apps/ai/hermes
@@ -119,6 +133,9 @@ kubectl kustomize kubernetes/apps/ai/hermes
 
 - [Pinned Hermes image](https://github.com/NousResearch/hermes-agent/blob/v0.21.6/Dockerfile)
 - [Hermes personality and SOUL](https://github.com/NousResearch/hermes-agent/blob/v0.21.6/website/docs/user-guide/features/personality.md)
+- [Pinned Hermes dashboard guide](https://github.com/NousResearch/hermes-agent/blob/v0.21.6/website/docs/user-guide/features/web-dashboard.md)
+- [Authentik OAuth2/OIDC provider](https://docs.goauthentik.io/add-secure-apps/providers/oauth2/)
+- [Authentik blueprints](https://docs.goauthentik.io/customize/blueprints/v1/structure/)
 - [Hermes providers](https://hermes-agent.nousresearch.com/docs/integrations/providers/)
 - [Hermes browser](https://hermes-agent.nousresearch.com/docs/user-guide/features/browser/)
 - [Proxmox API tokens](https://pve.proxmox.com/wiki/User_Management#_api_tokens)
