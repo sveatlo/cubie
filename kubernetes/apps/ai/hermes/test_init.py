@@ -63,6 +63,15 @@ class InitTests(unittest.TestCase):
         self.assertEqual(soul.stat().st_mode, before.st_mode)
         self.assertEqual((self.home / "config.yaml").read_text(), "model: updated\n")
 
+    def test_known_hosts_refreshes_on_redeploy(self):
+        self.initialize()
+        source = Path(__file__).with_name("known_hosts").read_text()
+        (self.config / "known_hosts").write_text(source)
+        self.initialize()
+        target = self.home / ".ssh/known_hosts"
+        self.assertEqual(target.read_text(), source)
+        self.assertEqual(target.stat().st_mode & 0o777, 0o600)
+
     def test_existing_empty_soul_is_not_reseeded(self):
         (self.home / "SOUL.md").write_text("")
         self.initialize()
