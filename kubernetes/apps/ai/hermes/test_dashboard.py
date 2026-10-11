@@ -31,7 +31,7 @@ class DashboardTests(unittest.TestCase):
 
     def test_dashboard_uses_oidc_with_bounded_proxy_trust(self):
         dashboard = self.config["dashboard"]
-        self.assertEqual(dashboard["public_url"], "https://hermes.${DOMAIN_0}")
+        self.assertEqual(dashboard["public_url"], "https://laki.${DOMAIN_0}")
         self.assertEqual(dashboard["oauth"]["provider"], "self-hosted")
         self.assertEqual(dashboard["oauth"]["self_hosted"]["issuer"],
                          "https://auth.${DOMAIN_0}/application/o/hermes/")
@@ -39,15 +39,14 @@ class DashboardTests(unittest.TestCase):
             self.assertGreater(ipaddress.ip_network(proxy).prefixlen, 0)
         self.assertNotIn("client_secret", dashboard["oauth"]["self_hosted"])
 
-    def test_ingress_is_https_lan_only_and_service_is_internal(self):
+    def test_ingress_is_https_without_lan_filter_and_service_is_internal(self):
         ingress = self.resource("Ingress", "hermes-dashboard")
         annotations = ingress["metadata"]["annotations"]
-        self.assertEqual(annotations["traefik.ingress.kubernetes.io/router.middlewares"],
-                         "traefik-lan-only@kubernetescrd")
+        self.assertNotIn("traefik.ingress.kubernetes.io/router.middlewares", annotations)
         self.assertEqual(annotations["traefik.ingress.kubernetes.io/router.entrypoints"], "websecure")
         self.assertEqual(annotations["traefik.ingress.kubernetes.io/router.tls"], "true")
         self.assertEqual(ingress["spec"]["ingressClassName"], "traefik")
-        self.assertEqual(ingress["spec"]["rules"][0]["host"], "hermes.${DOMAIN_0}")
+        self.assertEqual(ingress["spec"]["rules"][0]["host"], "laki.${DOMAIN_0}")
         service = self.resource("Service", "hermes-dashboard")
         self.assertEqual(service["spec"].get("type", "ClusterIP"), "ClusterIP")
         self.assertEqual(service["spec"]["ports"][0]["targetPort"], "dashboard")
@@ -81,6 +80,8 @@ class DashboardTests(unittest.TestCase):
     def test_authentik_application_is_bound_only_to_owner(self):
         application = self.entry("authentik_core.application")
         self.assertEqual(application["attrs"]["slug"], "hermes")
+        self.assertEqual(application["attrs"]["meta_launch_url"],
+                         self.config["dashboard"]["public_url"] + "/")
         self.assertEqual(application["attrs"]["policy_engine_mode"], "all")
         bindings = [e for e in self.blueprint["entries"] if e["model"] == "authentik_policies.policybinding"]
         self.assertEqual(len(bindings), 1)
