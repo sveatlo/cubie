@@ -29,7 +29,7 @@ browser:
 telegram:
   require_mention: true
 dashboard:
-  public_url: https://hermes.${DOMAIN_0}
+  public_url: https://laki.${DOMAIN_0}
   trusted_proxies:
     - 10.244.0.0/16
   oauth:

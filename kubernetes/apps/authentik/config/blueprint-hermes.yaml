@@ -25,7 +25,7 @@ data:
           invalidation_flow: !Find [authentik_flows.flow, [slug, default-provider-invalidation-flow]]
           signing_key: !Find [authentik_crypto.certificatekeypair, [name, authentik Self-signed Certificate]]
           redirect_uris:
-            - url: https://hermes.${DOMAIN_0}/auth/callback
+            - url: https://laki.${DOMAIN_0}/auth/callback
               matching_mode: strict
           property_mappings:
             - !Find [authentik_providers_oauth2.scopemapping, [scope_name, openid]]
@@ -42,7 +42,7 @@ data:
           name: Hermes
           slug: hermes
           provider: !KeyOf hermes-provider
-          meta_launch_url: https://hermes.${DOMAIN_0}/
+          meta_launch_url: https://laki.${DOMAIN_0}/
           policy_engine_mode: all
 
       # Without a binding, Authentik admits every authenticated user.

@@ -49,17 +49,17 @@ Only one Telegram gateway may poll this bot. Stop any old poller before rerunnin
 
 Repository changes must land in the GitOps source for durable reconciliation. ArgoCD currently watches GitHub `HEAD`. Merge them yourself; the agent must not merge or push to `main` or `master`. Let ArgoCD reconcile the affected applications after merging. Applying monitoring changes manually can be undone by ArgoCD.
 
-## LAN-only dashboard
+## Authentik-protected dashboard
 
-Open `https://hermes.${DOMAIN_0}` from the LAN and sign in through Authentik as `sveatlo`. Traefik terminates HTTPS with the existing wildcard certificate and applies `traefik-lan-only@kubernetescrd`, which allows source addresses in `10.69.0.0/16`. The dashboard Service is ClusterIP-only on port `9119`; no public LoadBalancer or NodePort is added.
+Open `https://laki.${DOMAIN_0}` and sign in through Authentik as `sveatlo`. Traefik terminates HTTPS with the existing wildcard certificate. This Ingress intentionally has no LAN-only middleware: the dashboard is reachable wherever Traefik is reachable, with native Authentik OIDC as its sole login gate. The dashboard Service is ClusterIP-only on port `9119`; no public LoadBalancer or NodePort is added.
 
 The official image's s6 supervisor runs the dashboard alongside the Telegram gateway as UID `10000`. Startup/readiness/liveness probes check its public `/api/status` endpoint. The dashboard shares the operator's PVC, credentials and permissions, so an authenticated dashboard session is an operator session, not a read-only monitoring view.
 
-Authentik provisions a public OIDC client named `hermes-dashboard` through its Git-managed blueprint. Login uses authorization-code PKCE, an asymmetric signing key and the exact callback `https://hermes.${DOMAIN_0}/auth/callback`. The application's user binding admits only `sveatlo`; other SSO accounts are not granted access. No client secret or separate dashboard password is needed. Update the blueprint if the owner account is renamed.
+Authentik provisions a public OIDC client named `hermes-dashboard` through its Git-managed blueprint. Login uses authorization-code PKCE, an asymmetric signing key and the exact callback `https://laki.${DOMAIN_0}/auth/callback`. The application's user binding admits only `sveatlo`; other SSO accounts are not granted access. No client secret or separate dashboard password is needed. Update the blueprint if the owner account is renamed.
 
-`dashboard.public_url` fixes the callback URL and allowed browser origin. The dashboard trusts forwarded proxy metadata from the Flannel pod CIDR `10.244.0.0/16` so Traefik's changing pod IP can convey the HTTPS scheme and produce Secure cookies. That trusts other cluster pods' forwarding metadata too, not just Traefik. LAN filtering happens at the Ingress; in-cluster direct access still relies on the native login gate. Do not expose the dashboard Service outside the cluster or widen proxy trust to `*` or `/0`.
+`dashboard.public_url` fixes the callback URL and allowed browser origin. The dashboard trusts forwarded proxy metadata from the Flannel pod CIDR `10.244.0.0/16` so Traefik's changing pod IP can convey the HTTPS scheme and produce Secure cookies. That trusts other cluster pods' forwarding metadata too, not just Traefik. Both Ingress access and in-cluster direct access rely on the native login gate; there is no source-network restriction on this Ingress. Do not expose the dashboard Service outside the cluster or widen proxy trust to `*` or `/0`.
 
-Dashboard edits to `SOUL.md` persist on the PVC. Dashboard edits to `config.yaml` remain subject to the Git-managed startup refresh. After reconciliation, verify the owner login, unauthenticated API rejection, Secure cookies, WebSocket access, and a denied non-LAN request. Neither an authenticated browser session nor a successful owner login is implied by a passing `/api/status` probe.
+Dashboard edits to `SOUL.md` persist on the PVC. Dashboard edits to `config.yaml` remain subject to the Git-managed startup refresh. After reconciliation, verify the owner login, denial of another SSO user, unauthenticated API rejection (including from a non-LAN client where reachable), token refresh, Secure cookies, and WebSocket access. Non-LAN clients are not rejected solely for their source address. Neither an authenticated browser session nor a successful owner login is implied by a passing `/api/status` probe.
 
 ## Editable identity
 

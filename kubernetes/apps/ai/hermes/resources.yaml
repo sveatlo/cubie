@@ -58,11 +58,10 @@ metadata:
   annotations:
     traefik.ingress.kubernetes.io/router.entrypoints: websecure
     traefik.ingress.kubernetes.io/router.tls: "true"
-    traefik.ingress.kubernetes.io/router.middlewares: traefik-lan-only@kubernetescrd
 spec:
   ingressClassName: traefik
   rules:
-    - host: hermes.${DOMAIN_0}
+    - host: laki.${DOMAIN_0}
       http:
         paths:
           - path: /
