@@ -65,6 +65,19 @@ class DashboardTests(unittest.TestCase):
         for probe in ("startupProbe", "readinessProbe", "livenessProbe"):
             self.assertGreater(gateway[probe]["timeoutSeconds"], 2)
 
+    def test_only_github_credentials_are_forwarded_to_operator_terminals(self):
+        pod = self.resource("Deployment", "hermes")["spec"]["template"]["spec"]
+        expected = [{
+            "name": "_HERMES_FORCE_GITHUB_TOKEN",
+            "valueFrom": {"secretKeyRef": {"name": "hermes-credentials", "key": "GITHUB_TOKEN"}},
+        }]
+        for container in pod["containers"] + pod["initContainers"]:
+            overrides = [v for v in container.get("env", []) if v["name"].startswith("_HERMES_FORCE_")]
+            self.assertEqual(overrides, expected if container["name"] in {"gateway", "alerts"} else [])
+            if container["name"] in {"gateway", "alerts"}:
+                env = {v["name"]: v.get("value") for v in container["env"]}
+                self.assertEqual(env.get("GIT_CONFIG_GLOBAL"), "/opt/data/.gitconfig")
+
     def test_public_client_callback_signing_and_refresh_match_hermes(self):
         provider = self.entry("authentik_providers_oauth2.oauth2provider")["attrs"]
         oidc = self.config["dashboard"]["oauth"]["self_hosted"]

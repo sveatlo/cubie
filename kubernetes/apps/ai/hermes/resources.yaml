@@ -130,6 +130,14 @@ spec:
             - secretRef:
                 name: hermes-credentials
           env: &env
+            # GitHub auth is needed by operator commands, not by the configured model.
+            - name: _HERMES_FORCE_GITHUB_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: hermes-credentials
+                  key: GITHUB_TOKEN
+            - name: GIT_CONFIG_GLOBAL
+              value: /opt/data/.gitconfig
             - name: HERMES_UID
               value: "10000"
             - name: HERMES_GID
