@@ -1,0 +1,18 @@
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: snapotter-db
+  namespace: snapotter
+spec:
+  instances: 1
+  imageName: ghcr.io/cloudnative-pg/postgresql:17.9
+  storage:
+    size: 5Gi
+    storageClass: nfs
+  bootstrap:
+    initdb:
+      database: snapotter
+      owner: snapotter
+      encoding: UTF8
+      localeCType: C
+      localeCollate: C
