@@ -15,44 +15,52 @@ spec:
           labels:
             severity: critical
           annotations:
-            summary: "Traefik service {{ $labels.service }} has no healthy backends"
+            summary: "Traefik service {{ $labels.exported_service }} has no healthy backends"
 
         - alert: TraefikHighErrorRate
           expr: |
-            sum(rate(traefik_service_requests_total{code=~"5.."}[5m])) by (service)
+            sum(rate(traefik_service_requests_total{code=~"5.."}[5m])) by (exported_service)
             /
-            sum(rate(traefik_service_requests_total[5m])) by (service)
+            sum(rate(traefik_service_requests_total[5m])) by (exported_service)
             > 0.05
           for: 5m
           labels:
             severity: warning
           annotations:
-            summary: "Traefik service {{ $labels.service }} high 5xx error rate"
+            summary: "Traefik service {{ $labels.exported_service }} high 5xx error rate"
             description: "{{ $value | humanizePercentage }} of requests are returning 5xx"
 
         - alert: TraefikHighClientErrorRate
           expr: |
-            sum(rate(traefik_service_requests_total{code=~"4.."}[5m])) by (service)
+            sum(rate(traefik_service_requests_total{code=~"4.."}[5m])) by (exported_service)
             /
-            sum(rate(traefik_service_requests_total[5m])) by (service)
+            sum(rate(traefik_service_requests_total[5m])) by (exported_service)
             > 0.10
           for: 5m
           labels:
             severity: warning
           annotations:
-            summary: "Traefik service {{ $labels.service }} high 4xx error rate"
+            summary: "Traefik service {{ $labels.exported_service }} high 4xx error rate"
             description: "{{ $value | humanizePercentage }} of requests are returning 4xx"
 
         - alert: TraefikHighLatency
           expr: |
-            histogram_quantile(0.99,
-              sum(rate(traefik_service_request_duration_seconds_bucket[5m])) by (le, service)
-            ) > 2
+            (
+              histogram_quantile(0.99,
+                sum(rate(traefik_service_request_duration_seconds_bucket[5m])) by (le, exported_service)
+              ) > 2
+            )
+            and on (exported_service)
+            (
+              sum by (exported_service) (
+                increase(traefik_service_request_duration_seconds_count[5m])
+              ) >= 10
+            )
           for: 5m
           labels:
             severity: warning
           annotations:
-            summary: "Traefik service {{ $labels.service }} p99 latency is high"
+            summary: "Traefik service {{ $labels.exported_service }} p99 latency is high"
             description: "p99 latency is {{ $value | humanizeDuration }}"
 
         - alert: TraefikTLSCertExpiringSoon
