@@ -1,0 +1,179 @@
+defaultPodOptions:
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 1000
+    runAsGroup: 1000
+    fsGroup: 1000
+    seccompProfile:
+      type: RuntimeDefault
+
+controllers:
+  snapotter:
+    strategy: Recreate
+    containers:
+      app:
+        image:
+          repository: docker.io/snapotter/snapotter
+          tag: "2.2.0"
+          pullPolicy: IfNotPresent
+        env:
+          EMBEDDED: "0"
+          AUTH_ENABLED: "true"
+          EXTERNAL_URL: https://tools.${DOMAIN_0}
+          DATABASE_URL:
+            valueFrom:
+              secretKeyRef:
+                name: snapotter-db-app
+                key: uri
+          REDIS_URL: redis://snapotter-redis:6379
+          OIDC_ENABLED: "true"
+          OIDC_ISSUER_URL: https://auth.${DOMAIN_0}/application/o/snapotter/
+          OIDC_CLIENT_ID: snapotter
+          OIDC_CLIENT_SECRET:
+            valueFrom:
+              secretKeyRef:
+                name: snapotter-secret
+                key: oidc-client-secret
+          OIDC_PROVIDER_NAME: Mirkwood Auth
+          OIDC_DEFAULT_ROLE: user
+          OIDC_AUTO_CREATE_USERS: "true"
+          OIDC_AUTO_LINK_USERS: "false"
+          DEFAULT_PASSWORD:
+            valueFrom:
+              secretKeyRef:
+                name: snapotter-secret
+                key: admin-password
+          COOKIE_SECRET:
+            valueFrom:
+              secretKeyRef:
+                name: snapotter-secret
+                key: cookie-secret
+          CONCURRENT_JOBS: "2"
+          MAX_UPLOAD_SIZE_MB: "1024"
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop: [ALL]
+        resources:
+          requests:
+            cpu: 250m
+            memory: 512Mi
+          limits:
+            cpu: "2"
+            memory: 4Gi
+        probes:
+          startup:
+            enabled: true
+            custom: true
+            spec:
+              httpGet:
+                path: /api/v1/health
+                port: 1349
+              failureThreshold: 120
+              periodSeconds: 5
+          readiness:
+            enabled: true
+            custom: true
+            spec:
+              httpGet:
+                path: /api/v1/health
+                port: 1349
+          liveness:
+            enabled: true
+            custom: true
+            spec:
+              httpGet:
+                path: /api/v1/health
+                port: 1349
+              timeoutSeconds: 5
+              failureThreshold: 6
+
+  redis:
+    strategy: Recreate
+    containers:
+      app:
+        image:
+          repository: docker.io/library/redis
+          tag: "8-alpine"
+          pullPolicy: IfNotPresent
+        args:
+          - --appendonly
+          - "yes"
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop: [ALL]
+        resources:
+          requests:
+            cpu: 25m
+            memory: 64Mi
+          limits:
+            memory: 512Mi
+
+service:
+  snapotter:
+    controller: snapotter
+    ports:
+      http:
+        port: 1349
+  redis:
+    controller: redis
+    ports:
+      redis:
+        port: 6379
+
+ingress:
+  snapotter:
+    enabled: true
+    className: traefik
+    annotations:
+      traefik.ingress.kubernetes.io/router.entrypoints: websecure
+      traefik.ingress.kubernetes.io/router.tls: "true"
+    hosts:
+      - host: tools.${DOMAIN_0}
+        paths:
+          - path: /
+            pathType: Prefix
+            service:
+              identifier: snapotter
+              port: http
+
+persistence:
+  data:
+    enabled: true
+    storageClass: nfs
+    accessMode: ReadWriteOnce
+    size: 20Gi
+    advancedMounts:
+      snapotter:
+        app:
+          - path: /data
+          - path: /data/ai/models
+            subPath: ai/models
+          - path: /data/ai/pip-cache
+            subPath: ai/pip-cache
+  ai-runtime:
+    enabled: true
+    type: emptyDir
+    sizeLimit: 15Gi
+    advancedMounts:
+      snapotter:
+        app:
+          - path: /data/ai
+  redis:
+    enabled: true
+    storageClass: nfs
+    accessMode: ReadWriteOnce
+    size: 1Gi
+    advancedMounts:
+      redis:
+        app:
+          - path: /data
+  workspace:
+    enabled: true
+    type: emptyDir
+    sizeLimit: 10Gi
+    advancedMounts:
+      snapotter:
+        app:
+          - path: /tmp/workspace

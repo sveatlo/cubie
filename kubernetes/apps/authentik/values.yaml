@@ -28,10 +28,17 @@ global:
           name: gitea-oidc
           key: client-secret
 
+    - name: AUTHENTIK_SNAPOTTER_CLIENT_SECRET
+      valueFrom:
+        secretKeyRef:
+          name: snapotter-oidc
+          key: client-secret
+
 blueprints:
   configMaps:
     - authentik-blueprint-gitea
     - authentik-blueprint-hermes
+    - authentik-blueprint-snapotter
 
 authentik:
   general:

@@ -15,3 +15,4 @@ resources:
   - config/cnpg-cluster.yaml
   - config/blueprint-gitea.yaml
   - config/blueprint-hermes.yaml
+  - config/blueprint-snapotter.yaml
