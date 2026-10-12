@@ -69,6 +69,12 @@ Keep the directory mount rather than a single-file `subPath` mount so editors ca
 
 SOUL changes take effect in new Hermes sessions; an existing session keeps its frozen prompt.
 
+## GitHub authentication
+
+`GITHUB_TOKEN` comes from `hermes-credentials`. Hermes v0.21.6 strips it from terminal commands by default. Operator containers also receive `_HERMES_FORCE_GITHUB_TOKEN` from the same Secret so the local-terminal builder restores `GITHUB_TOKEN` for Git and GitHub API commands. Terminal commands and skills deliberately receive that credential. `GIT_CONFIG_GLOBAL=/opt/data/.gitconfig` keeps the initialized credential helper available when Hermes redirects the terminal's `HOME` to `/opt/data/home`. Other managed-secret filters and the credential-free browser remain unchanged. Recheck this release-specific override when upgrading Hermes; `terminal.env_passthrough` cannot authorize the key.
+
+Run `smoke_test.py github` inside an operator container to check the filtered terminal environment, Git credential helper, and read-only GitHub API access without printing credentials. The `integrations` gate includes this check rather than testing only the parent process's environment.
+
 ## SSH targets
 
 The public key is `id_ed25519.pub`. Its fingerprint is:
@@ -137,6 +143,7 @@ kubectl kustomize kubernetes/apps/ai/hermes
 - [Authentik OAuth2/OIDC provider](https://docs.goauthentik.io/add-secure-apps/providers/oauth2/)
 - [Authentik blueprints](https://docs.goauthentik.io/customize/blueprints/v1/structure/)
 - [Hermes providers](https://hermes-agent.nousresearch.com/docs/integrations/providers/)
+- [Pinned Hermes local-terminal environment policy](https://github.com/NousResearch/hermes-agent/blob/v0.21.6/tools/environments/local.py#L242-L272)
 - [Hermes browser](https://hermes-agent.nousresearch.com/docs/user-guide/features/browser/)
 - [Proxmox API tokens](https://pve.proxmox.com/wiki/User_Management#_api_tokens)
 - [GitHub token permissions](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens)

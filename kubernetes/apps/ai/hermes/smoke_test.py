@@ -80,8 +80,7 @@ def integrations():
                                               check=True, capture_output=True, timeout=20)),
         ("Talos", lambda: subprocess.run(["talosctl", "--nodes", "10.69.10.236", "get", "machinestatus"],
                                          check=True, capture_output=True, timeout=30)),
-        ("GitHub", lambda: request_json("https://api.github.com/repos/sveatlo/cubie",
-                                        {"Authorization": "Bearer " + os.environ["GITHUB_TOKEN"]})),
+        ("GitHub", github_terminal),
         ("Telegram", lambda: request_json("https://api.telegram.org/bot" + os.environ["TELEGRAM_BOT_TOKEN"] + "/getMe")),
     ]
     base = os.environ["PROXMOX_API_URL"].rstrip("/")
@@ -103,6 +102,23 @@ def integrations():
                        check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=180)
 
 
+def github_terminal():
+    from tools.environments.local import _make_run_env
+
+    env = _make_run_env({})
+    token = env.get("GITHUB_TOKEN")
+    if not token:
+        raise RuntimeError("GITHUB_TOKEN is missing from the Hermes local-terminal environment")
+    response = subprocess.run(["git", "credential", "fill"], input="protocol=https\nhost=github.com\n\n",
+                              capture_output=True, text=True, timeout=15,
+                              env={**env, "GIT_TERMINAL_PROMPT": "0"})
+    fields = dict(line.split("=", 1) for line in response.stdout.splitlines() if "=" in line)
+    if response.returncode or fields.get("password") != token:
+        raise RuntimeError("GitHub credential helper failed in the Hermes local-terminal environment")
+    request_json("https://api.github.com/repos/sveatlo/cubie", {"Authorization": "Bearer " + token})
+    print("GitHub local-terminal credentials and read-only API check passed.")
+
+
 def proxmox_tls_context():
     verify = os.environ.get("PROXMOX_VERIFY_TLS", "true").lower()
     if verify not in ("true", "false"):
@@ -120,4 +136,4 @@ def request_json(url, headers=None, context=None):
 
 
 if __name__ == "__main__":
-    {"runtime": runtime, "model": model, "integrations": integrations}[sys.argv[1] if len(sys.argv) > 1 else "runtime"]()
+    {"runtime": runtime, "model": model, "integrations": integrations, "github": github_terminal}[sys.argv[1] if len(sys.argv) > 1 else "runtime"]()
