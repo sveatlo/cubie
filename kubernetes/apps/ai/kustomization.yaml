@@ -12,7 +12,7 @@ patches:
 helmCharts:
   - name: ollama
     repo: https://otwld.github.io/ollama-helm
-    version: "1.87.0"
+    version: "1.88.0"
     releaseName: ollama
     namespace: ai
     valuesFile: ollama-values.yaml
