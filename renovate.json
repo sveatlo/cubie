@@ -3,5 +3,81 @@
     "extends": [
         "config:recommended",
         "group:allNonMajor"
+    ],
+    "helm-values": {
+        "managerFilePatterns": ["/(^|/)[^/]*values[^/]*\\.ya?ml$/"]
+    },
+    "kubernetes": {
+        "managerFilePatterns": ["/^kubernetes/.+\\.ya?ml$/"]
+    },
+    "customManagers": [
+        {
+            "customType": "regex",
+            "description": "Track CNPG images, anchored images, and CI job images",
+            "managerFilePatterns": ["/^kubernetes/.+\\.ya?ml$/"],
+            "matchStrings": [
+                "(?:imageName:|image:\\s+&[\\w-]+)\\s+(?<depName>[^\\s:]+):(?<currentValue>[^\\s@]+)(?:@(?<currentDigest>sha256:[a-f0-9]+))?",
+                "docker://(?<depName>[^\\s:]+):(?<currentValue>[^\\s]+)"
+            ],
+            "datasourceTemplate": "docker",
+            "versioningTemplate": "docker"
+        },
+        {
+            "customType": "regex",
+            "description": "Track the Actions chart's Docker-in-Docker image",
+            "managerFilePatterns": ["/^kubernetes/apps/gitea/values-actions\\.yaml$/"],
+            "matchStrings": ["dind:[\\s\\S]*?\\n\\s+tag: (?<currentValue>[\\w.-]+)"],
+            "depNameTemplate": "docker",
+            "datasourceTemplate": "docker",
+            "versioningTemplate": "docker"
+        }
+    ],
+    "packageRules": [
+        {
+            "description": "Compare Bookshelf versions without changing hardcover/softcover",
+            "matchPackageNames": ["ghcr.io/pennydreadful/bookshelf"],
+            "versioning": "regex:^(?<compatibility>hardcover|softcover)-v(?<major>\\d+)\\.(?<minor>\\d+)\\.(?<patch>\\d+)\\.(?<build>\\d+)$"
+        },
+        {
+            "description": "Allow Livrarr updates within its existing alpha release channel",
+            "matchPackageNames": ["ghcr.io/kkodecs/livrarr"],
+            "versioning": "semver",
+            "ignoreUnstable": false
+        },
+        {
+            "description": "Track dated CI images without changing the Ubuntu release",
+            "matchPackageNames": ["catthehacker/ubuntu"],
+            "versioning": "regex:^(?<compatibility>act-\\d+\\.\\d+)-(?<major>\\d{8})$"
+        },
+        {
+            "description": "PostgreSQL major upgrades require a database migration",
+            "matchPackageNames": ["ghcr.io/cloudnative-pg/postgresql"],
+            "allowedVersions": "<18"
+        },
+        {
+            "description": "VectorChord extension upgrades need a separate migration review",
+            "matchPackageNames": ["ghcr.io/tensorchord/cloudnative-vectorchord"],
+            "versioning": "regex:^(?<compatibility>16)\\.(?<minor>\\d+)-0\\.4\\.(?<patch>\\d+)$"
+        },
+        {
+            "description": "Ignore legacy calendar tags while following Hermes's semver releases",
+            "matchPackageNames": ["docker.io/nousresearch/hermes-agent"],
+            "allowedVersions": "!/^v?20\\d{2}\\./"
+        },
+        {
+            "description": "Ignore historical Ubuntu package tags, not qBittorrent releases",
+            "matchPackageNames": ["lscr.io/linuxserver/qbittorrent"],
+            "allowedVersions": "!/^(?:14\\.|20\\.)/"
+        },
+        {
+            "description": "Ignore a historical tag unrelated to Lidarr's release version",
+            "matchPackageNames": ["lscr.io/linuxserver/lidarr"],
+            "allowedVersions": "!/^8\\.1\\.2135$/"
+        },
+        {
+            "description": "Keep the backup job's kubectl aligned with Kubernetes 1.35",
+            "matchPackageNames": ["alpine/k8s"],
+            "allowedVersions": "<1.36"
+        }
     ]
 }

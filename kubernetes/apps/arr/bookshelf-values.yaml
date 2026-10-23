@@ -5,7 +5,7 @@ controllers:
       main:
         image:
           repository: ghcr.io/pennydreadful/bookshelf
-          tag: hardcover-v0.4.20.129
+          tag: hardcover-v0.4.21.182
         env:
           TZ: UTC
           PUID: "1000"

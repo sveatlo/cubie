@@ -48,6 +48,30 @@ See [`bootstrap/README.md`](bootstrap/README.md) for the complete day-zero runbo
 3. Add `values.yaml` if using Helm
 4. Commit and push — ArgoCD ApplicationSet auto-discovers it
 
+## Image Updates
+
+Renovate tracks chart versions in `kustomization.yaml` separately from image versions:
+
+- `helm-values` reads `values.yaml`, `*-values.yaml`, and `values-*.yaml`, including app-template `image.repository` / `image.tag` pairs.
+- `kubernetes` reads container images in manifests under `kubernetes/`.
+- Custom regex managers cover CNPG `imageName`, anchored images, Actions job-image URLs, and the Actions chart's standalone Docker-in-Docker tag.
+
+Set an explicit release tag for each image declared in this repository. CI job images use dated tags within their existing Ubuntu release. Images inherited entirely from chart defaults remain chart-managed.
+
+The package rules preserve Bookshelf's hardcover/softcover variant and Livrarr's alpha channel. They also exclude historical registry tags that would otherwise look newer than current Hermes, Lidarr, and qBittorrent releases.
+
+Database and cluster upgrades need separate review: PostgreSQL stays on major 17, Immich's VectorChord image stays on PostgreSQL 16 with extension 0.4.x, and the backup job's kubectl stays on Kubernetes 1.35. Talos installer upgrades are outside these image managers.
+
+With a supported Node.js version, validate the configuration and perform a read-only registry lookup:
+
+```bash
+npx --yes --package=renovate renovate-config-validator --strict
+npx --yes --package=renovate renovate --platform=local --dry-run=lookup \
+  --enabled-managers=helm-values,kubernetes,custom.regex
+```
+
+References: [Helm values manager](https://docs.renovatebot.com/modules/manager/helm-values/), [Kubernetes manager](https://docs.renovatebot.com/modules/manager/kubernetes/), [custom regex manager](https://docs.renovatebot.com/modules/manager/regex/).
+
 ## Managing Secrets
 
 ```bash
