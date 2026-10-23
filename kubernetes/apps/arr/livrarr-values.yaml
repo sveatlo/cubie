@@ -5,7 +5,7 @@ controllers:
       init-permissions:
         image:
           repository: busybox
-          tag: latest
+          tag: 1.38.0
         command:
           - sh
           - -c
@@ -17,7 +17,7 @@ controllers:
       main:
         image:
           repository: ghcr.io/kkodecs/livrarr
-          tag: 0.1.0-alpha3
+          tag: 0.1.0-alpha6
         env:
           TZ: UTC
 
