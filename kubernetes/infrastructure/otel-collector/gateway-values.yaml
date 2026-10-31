@@ -12,7 +12,7 @@ image:
   # otlp, otlphttp, file, debug, nop and the load balancers, and nothing else),
   # so the metrics pipeline below cannot be built on it.
   repository: otel/opentelemetry-collector-contrib
-  tag: "0.163.2"
+  tag: "0.164.0"
 
 presets:
   kubernetesAttributes:
