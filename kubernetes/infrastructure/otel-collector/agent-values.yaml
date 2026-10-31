@@ -12,7 +12,7 @@ image:
   # needs it — see gateway-values.yaml. The core image carries neither the
   # filelog receiver nor the k8sattributes processor this agent runs on.
   repository: otel/opentelemetry-collector-contrib
-  tag: "0.163.2"
+  tag: "0.164.0"
 
 presets:
   logsCollection:

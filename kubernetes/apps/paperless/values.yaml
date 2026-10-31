@@ -5,7 +5,7 @@ controllers:
       app:
         image:
           repository: ghcr.io/paperless-ngx/paperless-ngx
-          tag: "3.4.0"
+          tag: "3.4.1"
           pullPolicy: IfNotPresent
         env:
           PAPERLESS_DBENGINE: postgresql
@@ -28,7 +28,7 @@ controllers:
       app:
         image:
           repository: docker.io/library/redis
-          tag: "8.10.2-alpine"
+          tag: "8.10.3-alpine"
           pullPolicy: IfNotPresent
 
 service:
