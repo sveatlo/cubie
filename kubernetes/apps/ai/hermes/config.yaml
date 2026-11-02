@@ -14,11 +14,18 @@ approvals:
   cron_mode: deny
 gateway:
   unauthorized_dm_behavior: ignore
+plugins:
+  enabled:
+    - homeassistant
+platforms:
+  homeassistant:
+    enabled: false
 platform_toolsets:
   telegram:
     - terminal
     - file
     - browser
+    - homeassistant
 browser:
   cloud_provider: local
   backend: "off"

@@ -119,6 +119,32 @@ def github_terminal():
     print("GitHub local-terminal credentials and read-only API check passed.")
 
 
+def homeassistant():
+    from hermes_cli.plugins import discover_plugins
+    from tools.environments.local import _make_run_env
+    from tools.registry import registry
+
+    discover_plugins()
+    from gateway.config import load_gateway_config
+
+    gateway = load_gateway_config()
+    ha_platform = next((p for p, c in gateway.platforms.items() if p.value == "homeassistant"), None)
+    assert ha_platform is not None and not gateway.platforms[ha_platform].enabled, "HA event gateway must stay disabled"
+    names = {"ha_list_entities", "ha_get_state", "ha_list_services", "ha_call_service"}
+    definitions = registry.get_definitions(names)
+    assert {d["function"]["name"] for d in definitions} == names
+    entities = json.loads(registry.dispatch("ha_list_entities", {"max": 1}))
+    assert "error" not in entities and entities["result"]["entities"]
+    entity_id = entities["result"]["entities"][0]["entity_id"]
+    for tool, args in (("ha_get_state", {"entity_id": entity_id}), ("ha_list_services", {"domain": "light"})):
+        assert "error" not in json.loads(registry.dispatch(tool, args))
+    env = _make_run_env({})
+    assert env.get("HASS_TOKEN") and env.get("HASS_URL"), "HA credentials missing from operator terminal"
+    assert urlsplit(env["HASS_URL"]).scheme == "https"
+    request_json(env["HASS_URL"].rstrip("/") + "/api/config", {"Authorization": "Bearer " + env["HASS_TOKEN"]})
+    print("Home Assistant read-only checks passed: four registered tools, entities, state, services, HTTPS terminal API.")
+
+
 def proxmox_tls_context():
     verify = os.environ.get("PROXMOX_VERIFY_TLS", "true").lower()
     if verify not in ("true", "false"):
@@ -136,4 +162,4 @@ def request_json(url, headers=None, context=None):
 
 
 if __name__ == "__main__":
-    {"runtime": runtime, "model": model, "integrations": integrations, "github": github_terminal}[sys.argv[1] if len(sys.argv) > 1 else "runtime"]()
+    {"runtime": runtime, "model": model, "integrations": integrations, "github": github_terminal, "homeassistant": homeassistant}[sys.argv[1] if len(sys.argv) > 1 else "runtime"]()

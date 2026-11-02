@@ -27,17 +27,19 @@ Secrets are not listed in Kustomize. The wizard provisions:
 | `../config/hermes-credentials.yaml.sops` | `hermes-credentials` | `ai` |
 | `../config/hermes-talos.yaml.sops` | `hermes-talos` | `ai` |
 | `../config/hermes-ssh.yaml.sops` | `hermes-ssh` | `ai` |
+| `../config/hermes-homeassistant.yaml.sops` | `hermes-homeassistant` | `ai` |
 | `../../../infrastructure/kube-prometheus-stack/config/hermes-alert-webhook.yaml.sops` | `hermes-alert-webhook` | `monitoring` |
 
 The Talos Secret can also contain `proxmox-ca.crt`. TLS verification is enabled by default. The owner has explicitly selected `PROXMOX_VERIFY_TLS=false` for the configured Proxmox API: its HTTPS traffic is encrypted, but the server certificate and hostname are not verified. A network attacker could impersonate Proxmox and obtain the API token. Other integrations keep TLS verification enabled. Restore `PROXMOX_VERIFY_TLS=true` and provide a trusted CA to remove this exception.
 
-To restore the existing credentials on a rebuilt cluster, apply all four encrypted Secrets from the repository root before reconciling the applications:
+The Home Assistant Secret is provisioned separately from the original wizard. To restore the existing credentials on a rebuilt cluster, apply all five encrypted Secrets from the repository root before reconciling the applications:
 
 ```bash
 for secret in \
   kubernetes/apps/ai/config/hermes-credentials.yaml.sops \
   kubernetes/apps/ai/config/hermes-talos.yaml.sops \
   kubernetes/apps/ai/config/hermes-ssh.yaml.sops \
+  kubernetes/apps/ai/config/hermes-homeassistant.yaml.sops \
   kubernetes/infrastructure/kube-prometheus-stack/config/hermes-alert-webhook.yaml.sops; do
   hack/apply-secret.sh "$secret"
 done
@@ -74,6 +76,36 @@ SOUL changes take effect in new Hermes sessions; an existing session keeps its f
 `GITHUB_TOKEN` comes from `hermes-credentials`. Hermes v0.21.6 strips it from terminal commands by default. Operator containers also receive `_HERMES_FORCE_GITHUB_TOKEN` from the same Secret so the local-terminal builder restores `GITHUB_TOKEN` for Git and GitHub API commands. Terminal commands and skills deliberately receive that credential. `GIT_CONFIG_GLOBAL=/opt/data/.gitconfig` keeps the initialized credential helper available when Hermes redirects the terminal's `HOME` to `/opt/data/home`. Other managed-secret filters and the credential-free browser remain unchanged. Recheck this release-specific override when upgrading Hermes; `terminal.env_passthrough` cannot authorize the key.
 
 Run `smoke_test.py github` inside an operator container to check the filtered terminal environment, Git credential helper, and read-only GitHub API access without printing credentials. The `integrations` gate includes this check rather than testing only the parent process's environment.
+
+## Home Assistant
+
+The official `homeassistant` plugin provides `ha_list_entities`, `ha_get_state`, `ha_list_services`, and `ha_call_service` in Telegram. It is pinned to `NousResearch/hermes-official-plugins` commit `4d492b1dc5326af3e38bb2cf3e4b9ad6d65f0072` (plugin version `2.0.1`) on the persistent PVC. The plugin is not baked into the container image or installed by the init container. Its event-driven gateway is explicitly disabled: HA state changes must not start autonomous agent runs.
+
+`hermes-homeassistant` supplies `HASS_URL` and `HASS_TOKEN` only to the gateway container. HTTPS certificate verification remains enabled. The same Secret is imported with `_HERMES_FORCE_` prefixes so Hermes's local-terminal builder restores these variables for owner-approved REST/WebSocket administration. The alerts and browser containers do not receive the HA environment. This is credential routing, not isolation from the cluster-admin operator or the shared PVC.
+
+The token belongs to the dedicated, local-only HA administrator `Hermes` (username `hermes`), not the owner's account. It was issued on 2026-11-02 with a 365-day lifetime; rotate it before 2027-11-02. The generated login password was not retained; the HA owner can reset it to log in as this user and issue a replacement token. Update the encrypted Secret, run `hack/apply-secret.sh kubernetes/apps/ai/config/hermes-homeassistant.yaml.sops`, and restart the gateway to load a rotated token. To revoke access, disable/delete the Hermes user or revoke its `Hermes on cubie` long-lived token in HA.
+
+The plugin has no entity allowlist: it can query all entities and call normal services. It deliberately blocks `shell_command`, `command_line`, `python_script`, `pyscript`, `hassio`, and `rest_command`; this does not constrain the administrator token used by terminal API calls. Manual-approval settings do not automatically intercept every native HA tool call. The existing SOUL instructions still require a specific owner approval before device actions or configuration writes.
+
+The encrypted Secret must be manually applied before merging the GitOps change. After the owner merges it, ArgoCD recreates Hermes with the HA environment and toolset. Start a new Telegram session so it sees the new tools. Check access without changing devices:
+
+```bash
+kubectl -n ai exec deployment/hermes -c gateway -- \
+  /opt/hermes/.venv/bin/python /config/smoke_test.py homeassistant
+```
+
+This checks tool registration, entity/state reads, service discovery, and HTTPS API access through the filtered terminal environment. It never calls a service or changes a device. An actual device-action test requires a separately approved target and action.
+
+After PVC loss, restore the plugin as well as the Secrets and OAuth state, then restart Hermes and rerun the check:
+
+```bash
+kubectl -n ai exec deployment/hermes -c gateway -- \
+  /opt/hermes/.venv/bin/hermes plugins install homeassistant \
+  --ref 4d492b1dc5326af3e38bb2cf3e4b9ad6d65f0072 --yes-deps --no-enable
+kubectl -n ai rollout restart deployment/hermes
+```
+
+`--no-enable` avoids live activation during installation; the Git-managed `plugins.enabled` entry selects it at restart. Do not use `--no-deps`: dependency consent/admission is required even when the image already contains `aiohttp`.
 
 ## SSH targets
 
@@ -147,3 +179,6 @@ kubectl kustomize kubernetes/apps/ai/hermes
 - [Hermes browser](https://hermes-agent.nousresearch.com/docs/user-guide/features/browser/)
 - [Proxmox API tokens](https://pve.proxmox.com/wiki/User_Management#_api_tokens)
 - [GitHub token permissions](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens)
+- [Pinned official Home Assistant plugin](https://github.com/NousResearch/hermes-official-plugins/tree/4d492b1dc5326af3e38bb2cf3e4b9ad6d65f0072/homeassistant)
+- [Home Assistant authentication API](https://developers.home-assistant.io/docs/auth_api/)
+- [Home Assistant WebSocket API](https://developers.home-assistant.io/docs/api/websocket/)
