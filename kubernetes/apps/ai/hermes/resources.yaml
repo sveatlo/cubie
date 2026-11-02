@@ -129,6 +129,11 @@ spec:
           envFrom:
             - secretRef:
                 name: hermes-credentials
+            - secretRef:
+                name: hermes-homeassistant
+            - prefix: _HERMES_FORCE_
+              secretRef:
+                name: hermes-homeassistant
           env: &env
             # GitHub auth is needed by operator commands, not by the configured model.
             - name: _HERMES_FORCE_GITHUB_TOKEN
