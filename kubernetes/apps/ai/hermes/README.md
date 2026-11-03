@@ -107,6 +107,14 @@ kubectl -n ai rollout restart deployment/hermes
 
 `--no-enable` avoids live activation during installation; the Git-managed `plugins.enabled` entry selects it at restart. Do not use `--no-deps`: dependency consent/admission is required even when the image already contains `aiohttp`.
 
+## Rohlík MCP
+
+`rohlik-mcp` uses `https://mcp.rohlik.cz/mcp`, copied from the local Pi MCP configuration. Hermes uses its own OAuth login; Pi's tokens are not copied or shared. The `mcp-rohlik-mcp` toolset is enabled for Telegram.
+
+After deploying the configuration, open the Hermes dashboard at `https://laki.${DOMAIN_0}`, find `rohlik-mcp` in the MCP connections, and authenticate with Rohlík. Reload MCP tools and start a new Telegram session. Verify connection and tool discovery without changing the cart or placing an order. Cart changes and purchases require specific owner approval; the manual-approval setting is not a blanket interceptor for MCP tools.
+
+OAuth state lives under `/opt/data/mcp-tokens/` on the sensitive PVC. Restore its backup after PVC loss or authorize Hermes again. Dashboard-only server configuration changes are replaced by the Git-managed configuration at startup.
+
 ## SSH targets
 
 The public key is `id_ed25519.pub`. Its fingerprint is:
