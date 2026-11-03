@@ -20,12 +20,17 @@ plugins:
 platforms:
   homeassistant:
     enabled: false
+mcp_servers:
+  rohlik-mcp:
+    url: https://mcp.rohlik.cz/mcp
+    auth: oauth
 platform_toolsets:
   telegram:
     - terminal
     - file
     - browser
     - homeassistant
+    - mcp-rohlik-mcp
 browser:
   cloud_provider: local
   backend: "off"
