@@ -82,7 +82,7 @@ repoServer:
   # from the SOPS-encrypted vars/domains.yaml.sops using the mounted age key.
   extraContainers:
     - name: cmp-kustomize-envsubst
-      image: quay.io/argoproj/argocd:v3.5.6
+      image: quay.io/argoproj/argocd:v3.5.7
       imagePullPolicy: IfNotPresent
       command: ["/var/run/argocd/argocd-cmp-server"]
       env:
