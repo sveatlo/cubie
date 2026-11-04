@@ -1,23 +1,32 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: authentik-blueprint-hermes
+  name: authentik-blueprint-hermes-samwise
   namespace: authentik
 data:
-  hermes.yaml: |
+  hermes-samwise.yaml: |
     version: 1
     metadata:
-      name: hermes
+      name: hermes-samwise
     entries:
-      - model: authentik_providers_oauth2.oauth2provider
-        id: hermes-provider
+      - model: authentik_core.group
+        id: samwise-access
         state: present
         identifiers:
-          name: hermes
+          name: app_hermes_samwise
         attrs:
-          name: hermes
+          users:
+            - !Find [authentik_core.user, [username, sveatlo]]
+
+      - model: authentik_providers_oauth2.oauth2provider
+        id: samwise-provider
+        state: present
+        identifiers:
+          name: hermes-samwise
+        attrs:
+          name: hermes-samwise
           client_type: public
-          client_id: hermes-dashboard
+          client_id: hermes-dashboard-samwise
           grant_types:
             - authorization_code
             - refresh_token
@@ -25,7 +34,7 @@ data:
           invalidation_flow: !Find [authentik_flows.flow, [slug, default-provider-invalidation-flow]]
           signing_key: !Find [authentik_crypto.certificatekeypair, [name, authentik Self-signed Certificate]]
           redirect_uris:
-            - url: https://laki.${DOMAIN_0}/auth/callback
+            - url: https://samwise.${DOMAIN_0}/auth/callback
               matching_mode: strict
           property_mappings:
             - !Find [authentik_providers_oauth2.scopemapping, [scope_name, openid]]
@@ -34,23 +43,32 @@ data:
             - !Find [authentik_providers_oauth2.scopemapping, [scope_name, offline_access]]
 
       - model: authentik_core.application
-        id: hermes-application
+        id: samwise-application
         state: present
         identifiers:
-          slug: hermes
+          slug: hermes-samwise
         attrs:
-          name: Hermes
-          slug: hermes
-          provider: !KeyOf hermes-provider
-          meta_launch_url: https://laki.${DOMAIN_0}/
+          name: Samwise (Hermes)
+          slug: hermes-samwise
+          provider: !KeyOf samwise-provider
+          meta_launch_url: https://samwise.${DOMAIN_0}/
           policy_engine_mode: all
 
-      # Without a binding, Authentik admits every authenticated user.
       - model: authentik_policies.policybinding
         state: present
         identifiers:
-          target: !KeyOf hermes-application
-          user: !Find [authentik_core.user, [username, sveatlo]]
+          target: !KeyOf samwise-application
+          group: !KeyOf samwise-access
           order: 0
         attrs:
           enabled: true
+
+      - model: authentik_core.application
+        state: absent
+        identifiers:
+          slug: hermes
+
+      - model: authentik_providers_oauth2.oauth2provider
+        state: absent
+        identifiers:
+          name: hermes
