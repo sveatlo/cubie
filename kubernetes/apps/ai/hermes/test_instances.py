@@ -44,16 +44,13 @@ class InstanceTests(unittest.TestCase):
         for name in ("startupProbe", "readinessProbe", "livenessProbe"):
             self.assertGreater(gateway[name]["timeoutSeconds"], 2)
 
-    def test_legacy_volume_is_retained_without_reusing_it(self):
+    def test_only_fresh_instance_storage_is_managed_and_mounted(self):
         claims = {r["metadata"]["name"]: r for r in self.resources if r["kind"] == "PersistentVolumeClaim"}
-        self.assertEqual(set(claims), {"hermes", "hermes-samwise"})
-        self.assertEqual(claims["hermes"]["metadata"]["annotations"]["argocd.argoproj.io/sync-options"], "Prune=false")
+        self.assertEqual(set(claims), {"hermes-samwise"})
         pod = next(r for r in self.resources if r["kind"] == "Deployment")["spec"]["template"]["spec"]
         self.assertEqual(pod["volumes"][0]["persistentVolumeClaim"]["claimName"], "hermes-samwise")
-        transfer = yaml.safe_load((ROOT / "transfer-pod.yaml").read_text())
-        self.assertEqual(transfer["spec"]["volumes"][0]["persistentVolumeClaim"], {"claimName": "hermes", "readOnly": True})
-        self.assertFalse(transfer["spec"]["automountServiceAccountToken"])
-        self.assertNotIn("hermes-samwise-transfer", {r["metadata"]["name"] for r in self.resources})
+        self.assertFalse(any(r["kind"] == "Pod" for r in self.resources))
+        self.assertFalse(any(v.get("persistentVolumeClaim", {}).get("claimName") == "hermes" for v in pod["volumes"]))
 
     def test_generated_config_contains_only_household_runtime(self):
         cm = next(r for r in self.resources if r["kind"] == "ConfigMap")

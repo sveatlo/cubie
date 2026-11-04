@@ -3,4 +3,3 @@ kind: Kustomization
 namespace: ai
 resources:
   - instances/samwise
-  - migration.yaml
