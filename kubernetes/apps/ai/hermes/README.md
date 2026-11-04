@@ -42,12 +42,14 @@ OpenAI and Rohlík require fresh sign-ins. No OAuth files or other state are cop
 
 ## Fresh reset: owner merges first
 
+PR #207 prepared the reset with Samwise stopped. The Samwise overlay now requests one replica; the reusable base stays at zero. The Telegram and HA Secrets were manually applied on 2026-11-04. OpenAI and Rohlík still require fresh sign-ins after activation.
+
 **The preparation PR starts a maintenance window when merged.** ArgoCD will prune the old Deployment, browser, alert receiver, RBAC and ingress. Samwise remains at `replicas: 0`. The old PVC is no longer managed and ArgoCD can prune it. Its NFS files remain because the PV uses `Retain`; the owner will delete those files manually.
 
 1. Before merging, agree on the maintenance window. The owner handles manual deletion of old files and historical copies; this PR does not erase them.
 2. The owner merges the preparation PR. Wait for the `ai`, `authentik` and `kube-prometheus-stack` Argo applications to sync. Verify the old Deployment and all its Pods are gone, Samwise has zero replicas, its new PVC is bound, the HA token is retained, and Alertmanager still has its default email receiver.
 3. Apply the two new encrypted Secrets above. Check the Authentik blueprint succeeded, `app_hermes_samwise` contains only the owner, and the old application/provider no longer exist.
-4. Prepare a small activation PR adding a Samwise overlay patch for `spec.replicas: 1`. The owner merges it. Do not use `kubectl scale` against Argo-managed replicas. Wait for initialization and dashboard readiness.
+4. The owner merges the activation PR setting the Samwise overlay's `replicas` count to `1`. Do not use `kubectl scale` against Argo-managed replicas. Wait for initialization and dashboard readiness.
 5. Sign in to OpenAI and Rohlík again using Hermes's authentication flows. Do not restore the old `auth.json`, `mcp-tokens/` or `.env`.
 6. Run the runtime, integration and model checks below. Verify Rohlík connects and discovers tools without modifying a cart. Test dashboard login as the owner and denial for a nonmember. Send a new private Telegram conversation and check the Samwise personality. Confirm the fresh installation has no inherited memories, chats, jobs, skills, workspace or alert reports. The smoke/model checks themselves create new state; that is not inherited history.
 7. Use Telegram Bot API `setMyName`, `setMyDescription` and `setMyShortDescription` to set Samwise's household identity. Keep the bot username, token and owner allowlist unchanged. Do not delete messages from Telegram.
@@ -96,7 +98,7 @@ The integration check verifies Telegram and HA authentication only. Rohlík tool
 
 ## Add another instance
 
-Copy `instances/samwise/` to a new instance directory. Change the suffix, instance label, Secret references, hostname, OAuth issuer/client and identity; add the directory to the parent Kustomization. Create a separate Authentik group, application, provider and strict callback, and new encrypted Secrets. Use a different Telegram bot unless an explicit routing design replaces polling. Start with a fresh PVC and authorize that instance independently: do not clone Samwise's state or share rotating OAuth token files.
+Copy `instances/samwise/` to a new instance directory. Start its replica count at zero. Change the suffix, instance label, Secret references, hostname, OAuth issuer/client and identity; add the directory to the parent Kustomization. Create a separate Authentik group, application, provider and strict callback, and new encrypted Secrets. Use a different Telegram bot unless an explicit routing design replaces polling. Start with a fresh PVC and authorize that instance independently: do not clone Samwise's state or share rotating OAuth token files.
 
 All instances start at zero replicas unless their overlay explicitly activates them. Never add a second instance without reviewing both rendered selectors and credential routing.
 
