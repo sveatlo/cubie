@@ -14,7 +14,7 @@ controllers:
       app:
         image:
           repository: docker.io/snapotter/snapotter
-          tag: "2.2.0"
+          tag: "2.3.0"
           pullPolicy: IfNotPresent
         env:
           EMBEDDED: "0"

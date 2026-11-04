@@ -69,7 +69,7 @@ statefulset:
   dind:
     rootless: true
     uid: 1000
-    tag: 29.9.2-dind-rootless
+    tag: 29.9.3-dind-rootless
     # Three of six cores leaves etcd enough to answer its health checks.
     resources:
       requests:
