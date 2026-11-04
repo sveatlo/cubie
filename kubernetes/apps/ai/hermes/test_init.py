@@ -45,6 +45,18 @@ class InitTests(unittest.TestCase):
             "workspace", "config.yaml", "SOUL.md", ".homeassistant-plugin-ref", "plugins",
         })
 
+    def test_seeds_identity_before_hermes_cli_can_create_its_default(self):
+        def install_with_cli_bootstrap(*args, **kwargs):
+            soul = self.home / "SOUL.md"
+            if not soul.exists():
+                soul.write_text("You are Hermes Agent, built by Nous Research.\n")
+            self.install_plugin(*args, **kwargs)
+
+        self.run.side_effect = install_with_cli_bootstrap
+        self.initialize()
+        self.assertEqual((self.home / "SOUL.md").read_text(), "Initial Samwise identity\n")
+        self.assertEqual((self.home / "SOUL.md").stat().st_mode & 0o777, 0o600)
+
     def test_refreshes_config_but_preserves_runtime_identity(self):
         self.initialize()
         soul = self.home / "SOUL.md"
