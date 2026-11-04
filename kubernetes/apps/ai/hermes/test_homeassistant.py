@@ -22,7 +22,7 @@ class HomeAssistantTests(unittest.TestCase):
             self.assertEqual(self.config["approvals"][mode], "deny")
         for platform in ("telegram", "cli", "api_server"):
             self.assertEqual(self.config["platform_toolsets"][platform], [
-                "terminal", "file", "homeassistant", "mcp-rohlik-mcp", "mcp-mealie",
+                "terminal", "file", "homeassistant", "mcp-rohlik-mcp", "mcp-mealie", "camofox",
             ])
 
     def test_only_gateway_receives_full_ha_credentials(self):

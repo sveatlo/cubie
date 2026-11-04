@@ -1,0 +1,38 @@
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: hermes-browser-auth
+spec:
+  forwardAuth:
+    address: http://authentik-server.authentik.svc.cluster.local/outpost.goauthentik.io/auth/traefik
+    trustForwardHeader: true
+---
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: hermes-browser
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - kind: Rule
+      match: Host(`samwise-browser.${DOMAIN_0}`) && PathPrefix(`/outpost.goauthentik.io/`)
+      priority: 100
+      middlewares:
+        - name: lan-only
+          namespace: traefik
+      services:
+        - name: authentik-server
+          namespace: authentik
+          port: 80
+    - kind: Rule
+      match: Host(`samwise-browser.${DOMAIN_0}`)
+      priority: 10
+      middlewares:
+        - name: lan-only
+          namespace: traefik
+        - name: hermes-browser-auth-samwise
+      services:
+        - name: hermes-browser-samwise
+          port: novnc
+  tls: {}

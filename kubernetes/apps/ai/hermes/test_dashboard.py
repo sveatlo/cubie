@@ -69,7 +69,9 @@ class DashboardTests(unittest.TestCase):
         self.assertEqual(app["attrs"]["slug"], "hermes-samwise")
         self.assertEqual(app["attrs"]["policy_engine_mode"], "all")
         self.assertEqual(app["attrs"]["meta_launch_url"], self.config["dashboard"]["public_url"] + "/")
-        bindings = [e for e in self.blueprint["entries"] if e["model"] == "authentik_policies.policybinding"]
+        bindings = [e for e in self.blueprint["entries"]
+                    if e["model"] == "authentik_policies.policybinding"
+                    and e["identifiers"]["target"] == {"key": app["id"]}]
         self.assertEqual(len(bindings), 1)
         self.assertEqual(bindings[0]["identifiers"]["target"], {"key": app["id"]})
         self.assertEqual(bindings[0]["identifiers"]["group"], {"key": group["id"]})

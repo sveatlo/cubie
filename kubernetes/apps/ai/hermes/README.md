@@ -1,11 +1,13 @@
 # Hermes household instances
 
-Samwise is the first household instance. The shared `base/` supplies the pinned Hermes runtime, dashboard Service, a dedicated PVC and initialization. Each directory under `instances/` supplies identity, configuration, hostname, resource suffix, selectors and Secret references.
+Samwise is the first household instance. The shared `base/` supplies the pinned Hermes runtime, Camofox sidecar, dashboard/browser Services, separate runtime/browser PVCs and initialization. Each directory under `instances/` supplies identity, configuration, hostname, resource suffix, selectors and Secret references.
 
 | Setting | Samwise |
 | --- | --- |
 | Deployment / PVC | `ai/hermes-samwise` |
 | Dashboard | `https://samwise.${DOMAIN_0}` |
+| Browser desktop | `https://samwise-browser.${DOMAIN_0}/vnc.html?autoconnect=true&resize=remote` |
+| Browser PVC | `ai/hermes-browser-samwise` |
 | Authentik application | `Samwise (Hermes)`, slug `hermes-samwise` |
 | Dashboard OAuth client | `hermes-dashboard-samwise`, public client with PKCE |
 | Access group | `app_hermes_samwise`, initially only `sveatlo` |
@@ -17,9 +19,9 @@ Separate Deployments, PVCs, ConfigMaps, Secrets and Authentik access keep instan
 
 ## Runtime and identity
 
-Initialization installs the official Home Assistant plugin at commit `4d492b1dc5326af3e38bb2cf3e4b9ad6d65f0072` (version `2.0.1`) with dependency consent. A failed install blocks startup. The managed `config.yaml` is refreshed each start. `SOUL.md` is a seed: copied only if absent, so later runtime edits survive restarts. A new PVC gives Samwise a fresh identity, without inheriting old memories, conversations, skills or jobs.
+Initialization installs the official Home Assistant plugin at commit `4d492b1dc5326af3e38bb2cf3e4b9ad6d65f0072` (version `2.0.1`) and Camofox plugin at commit `1138f25c8b7b5a8fb882b3161e248f29abbd1a46` (version `1.1.0`), with dependency consent. A failed install blocks startup. The managed `config.yaml` is refreshed each start. `SOUL.md` is a seed: copied only if absent, so later runtime edits survive restarts. A new PVC gives Samwise a fresh identity, without inheriting old memories, conversations, skills or jobs.
 
-Telegram, CLI and API toolsets contain terminal, file, Home Assistant, Rohlík and Mealie tools, not browser tools. There is no browser or alert sidecar, GitHub credential helper, Kubernetes RBAC grant, projected service-account token, SSH key, Talos config, Proxmox credential or operator-tool download. The image still contains general-purpose software and network access; these changes do not make arbitrary terminal commands a sandbox.
+Telegram, CLI and API toolsets contain terminal, file, Home Assistant, Rohlík, Mealie and Camofox tools. There is no alert sidecar, GitHub credential helper, Kubernetes RBAC grant, projected service-account token, SSH key, Talos config, Proxmox credential or operator-tool download. The image still contains general-purpose software and network access; these changes do not make arbitrary terminal commands a sandbox.
 
 The official HA plugin provides discovery and device-control tools. Its autonomous event platform stays disabled. The gateway also receives `HASS_URL` and `HASS_TOKEN` through the terminal credential override so it retains full REST/WebSocket administration, including operations the plugin restricts. The retained token belongs to the local-only HA administrator `Hermes` (`hermes`); its recorded expiry is 2027-11-02. Do not revoke it during this reset.
 
@@ -59,6 +61,28 @@ Before merging the integration or rotating its token:
    ```
 
 The initial dedicated Secret was applied on 2026-11-04, and a read-only `/api/users/self` request verified its authentication and administrative/food-organization permissions. The integration still requires an owner merge and post-sync MCP discovery/read verification. A missing Secret or failed sidecar startup blocks Samwise's rollout; do not merge before provisioning it. A separate instance needs its own token and Secret reference.
+
+## Camofox browsing
+
+Camofox `1.18.1` is pinned by image digest and starts as a native sidecar before Hermes initialization. The upstream image stores its browser under root-only `/root`, so a capability-free root init container copies the bundle into an ephemeral volume. The browser then runs as UID/GID `10000`, with a read-only root filesystem and bundle. It receives neither the Hermes PVC nor its Secrets. Its REST API (`9377`) and native VNC (`5900`) bind to loopback; only noVNC (`6080`) has a ClusterIP Service. Loopback is a Pod boundary, not a gateway credential boundary: any container in this Pod can control the browser. Other cluster workloads and cluster administrators can reach the internal noVNC Service; there is no hostile-workload isolation or VNC password.
+
+The external noVNC ingress requires both the LAN allowlist and Authentik forward auth. It has a separate `hermes-samwise-browser` application bound to the existing `app_hermes_samwise` group; the dashboard retains its own native OAuth login. The `/outpost.goauthentik.io/` callback goes to Authentik behind the LAN allowlist, without recursive forward auth. The catch-all browser route authenticates the `/websockify` handshake too. Logging out or removing membership does not disconnect an already-open WebSocket; close the desktop session when finished.
+
+The blueprint assigns this provider to Authentik's embedded outpost. Its `providers` field is the complete membership list, not an append operation. Put future embedded-outpost providers in the same canonical list or this blueprint will detach them. The outpost must already have its public `authentik_host` configured; the blueprint preserves that existing configuration.
+
+Managed persistence gives each Hermes profile a stable browser identity. Cookies and localStorage live on `hermes-browser-samwise`, separate from Hermes files; IndexedDB is not enabled. Conversations using the same profile share its logged-in browser state. No automatic logout is performed at session end. The Node server runs directly as PID 1 so SIGTERM saves state before the browser exits; the Pod allows 60 seconds for shutdown, shared with the gateway and other sidecars. Forced termination or a node failure can lose changes since the last save. NFS administrators can read stored sessions; treat this PVC as credential-bearing data. Crash-report telemetry is disabled.
+
+Requested browsing can reach both public sites and homelab services. Page text is untrusted input. Purchases, payments, account/permission changes, destructive actions and sharing private data require confirmation. These are instructions to the agent, not technical permission controls. Use the protected desktop for manual sign-in rather than sending passwords in chat: typed fields, including passwords, can appear in model snapshots. Pages can attempt requests to LAN destinations, so allowing homelab browsing also permits that exposure.
+
+A credential-free staging Pod verified plugin installation, managed identity, public navigation/snapshots, the noVNC WebSocket handshake, rejection of control-API requests to the Pod IP, and cookie/localStorage retention after both a sidecar restart and Pod replacement. The rendered blueprint passed Authentik's live importer validation inside its rollback transaction. The staging Pod and PVC were removed. These checks did not test owner/nonmember SSO or external LAN filtering through the new hostname.
+
+Before rollout:
+
+1. Merge through owner review, then wait for both `authentik` and `ai` to sync. Check that the blueprint applied, its proxy provider is attached to the embedded outpost, and the browser PVC is bound.
+2. Review the existing `/opt/data/SOUL.md` and add the **Browser** section from `instances/samwise/SOUL.md` without discarding personal edits. Updating the seed alone does not change an existing instance.
+3. Run `hermes camofox status` in the gateway. It must report a reachable server and managed persistence. Ask for a public page and confirm browser tool calls in Telegram and the dashboard.
+4. Test the desktop and `/websockify`: unauthenticated LAN clients must redirect to Authentik, a group member must connect, a nonmember must be denied, and a non-LAN request must be rejected. Local manifest tests do not establish these live authorization results.
+5. Sign in through the desktop. Use a normal rollout restart to check that the login survives before relying on persistence. Do not test persistence with purchases, cart changes or home-device writes.
 
 ## Fresh reset: owner merges first
 
@@ -124,6 +148,11 @@ All instances start at zero replicas unless their overlay explicitly activates t
 
 ## References
 
+- [Hermes Camofox plugin](https://hermes-agent.nousresearch.com/docs/plugins/camofox)
+- [Pinned Camofox plugin source](https://github.com/NousResearch/hermes-official-plugins/tree/1138f25c8b7b5a8fb882b3161e248f29abbd1a46/camofox)
+- [Camofox server](https://github.com/jo-inc/camofox-browser)
+- [Authentik Traefik forward auth](https://docs.goauthentik.io/add-secure-apps/providers/proxy/server_traefik/)
+- [Authentik embedded outpost](https://docs.goauthentik.io/add-secure-apps/outposts/embedded/)
 - [Better Mealie MCP v3.30.0 setup](https://github.com/djwmarcx/better-mealie-mcp/tree/v3.30.0)
 - [Better Mealie MCP v3.30.0 server configuration](https://github.com/djwmarcx/better-mealie-mcp/blob/v3.30.0/better_mealie_mcp/server.py)
 - [Mealie API tokens](https://docs.mealie.io/documentation/getting-started/api-usage/)

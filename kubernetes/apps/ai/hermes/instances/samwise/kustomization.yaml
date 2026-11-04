@@ -4,6 +4,7 @@ nameSuffix: -samwise
 resources:
   - ../../base
   - ingress.yaml
+  - browser-ingress.yaml
 labels:
   - pairs:
       app.kubernetes.io/instance: samwise

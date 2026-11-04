@@ -10,6 +10,29 @@ spec:
       storage: 5Gi
 ---
 apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: hermes-browser
+spec:
+  accessModes: [ReadWriteOnce]
+  storageClassName: nfs
+  resources:
+    requests:
+      storage: 2Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: hermes-browser
+spec:
+  selector:
+    app.kubernetes.io/name: hermes
+  ports:
+    - name: novnc
+      port: 6080
+      targetPort: novnc
+---
+apiVersion: v1
 kind: Service
 metadata:
   name: hermes-dashboard
@@ -43,7 +66,93 @@ spec:
         kubernetes.io/arch: amd64
       securityContext:
         fsGroup: 10000
+      terminationGracePeriodSeconds: 60
       initContainers:
+        - name: browser-binary
+          image: &browserImage ghcr.io/jo-inc/camofox-browser:1.18.1@sha256:cff2c1432b609bde9c9d0b91e5b924dae0799d3c7bc9d468c0bc949325beaf2a
+          command: [cp, -R, /root/.cache/camoufox/., /browser/]
+          securityContext:
+            runAsUser: 0
+            runAsGroup: 10000
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: [ALL]
+            seccompProfile:
+              type: RuntimeDefault
+          resources:
+            requests:
+              cpu: 100m
+              memory: 64Mi
+            limits:
+              memory: 256Mi
+          volumeMounts:
+            - name: browser-binary
+              mountPath: /browser
+        - name: camofox
+          restartPolicy: Always
+          image: *browserImage
+          command: [node, --max-old-space-size=256, server.js]
+          env:
+            - name: HOME
+              value: /data
+            - name: CAMOUFOX_EXECUTABLE
+              value: /browser/camoufox-bin
+            - name: CAMOFOX_BIND_HOST
+              value: 127.0.0.1
+            - name: CAMOFOX_PROFILE_DIR
+              value: /data/profiles
+            - name: CAMOFOX_CRASH_REPORT_ENABLED
+              value: "false"
+            - name: ENABLE_VNC
+              value: "1"
+            - name: VNC_BIND
+              value: 0.0.0.0
+            - name: VNC_RFB_BIND
+              value: 127.0.0.1
+          ports:
+            - name: novnc
+              containerPort: 6080
+          startupProbe:
+            exec: &browserCheck
+              command: [node, -e, "Promise.all(['http://127.0.0.1:9377/health', 'http://127.0.0.1:6080/vnc.html'].map(u => fetch(u))).then(rs => process.exit(rs.every(r => r.ok) ? 0 : 1)).catch(() => process.exit(1))"]
+            timeoutSeconds: 5
+            periodSeconds: 2
+            failureThreshold: 60
+          readinessProbe:
+            exec: *browserCheck
+            timeoutSeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            exec: *browserCheck
+            timeoutSeconds: 5
+            periodSeconds: 20
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 10000
+            runAsGroup: 10000
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: [ALL]
+            seccompProfile:
+              type: RuntimeDefault
+          resources:
+            requests:
+              cpu: 100m
+              memory: 512Mi
+            limits:
+              memory: 2Gi
+          volumeMounts:
+            - name: browser-binary
+              mountPath: /browser
+              readOnly: true
+            - name: browser-data
+              mountPath: /data
+            - name: browser-tmp
+              mountPath: /tmp
+            - name: browser-shm
+              mountPath: /dev/shm
         - name: configure
           image: &image docker.io/nousresearch/hermes-agent:v0.22.7@sha256:e6d81ae52ebf6a43efa529701405509f20054ba818f179ddd748bed4f8af584c
           command: [/opt/hermes/.venv/bin/python, /config/init.py]
@@ -86,6 +195,8 @@ spec:
               secretRef:
                 name: hermes-homeassistant
           env:
+            - name: CAMOFOX_URL
+              value: http://127.0.0.1:9377
             - name: HERMES_HOME
               value: /opt/data
             - name: HOME
@@ -125,6 +236,19 @@ spec:
               memory: 2Gi
           volumeMounts: *mounts
       volumes:
+        - name: browser-binary
+          emptyDir:
+            sizeLimit: 2Gi
+        - name: browser-data
+          persistentVolumeClaim:
+            claimName: hermes-browser
+        - name: browser-tmp
+          emptyDir:
+            sizeLimit: 512Mi
+        - name: browser-shm
+          emptyDir:
+            medium: Memory
+            sizeLimit: 256Mi
         - name: data
           persistentVolumeClaim:
             claimName: hermes

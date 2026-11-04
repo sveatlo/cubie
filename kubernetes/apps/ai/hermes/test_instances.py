@@ -33,7 +33,7 @@ class InstanceTests(unittest.TestCase):
         self.assertNotIn("serviceAccountName", pod)
         self.assertEqual([c["name"] for c in pod["containers"]], ["gateway"])
         self.assertFalse(any(r["kind"] in ("ClusterRoleBinding", "RoleBinding", "ServiceAccount") for r in self.resources))
-        self.assertEqual({v["name"] for v in pod["volumes"]}, {"data", "config", "mealie-tmp"})
+        self.assertEqual({v["name"] for v in pod["volumes"]}, {"data", "config", "mealie-tmp", "browser-binary", "browser-data", "browser-tmp", "browser-shm"})
         gateway = pod["containers"][0]
         self.assertNotIn("command", gateway)
         self.assertEqual(gateway["args"], ["gateway", "run"])
@@ -65,9 +65,9 @@ class InstanceTests(unittest.TestCase):
         self.assertNotIn("MEALIE_INCLUDE_TAGS", env)
         self.assertNotIn("MEALIE_EXCLUDE_TAGS", env)
         base = next(r for r in render(ROOT / "base") if r["kind"] == "Deployment")
-        self.assertEqual([c["name"] for c in base["spec"]["template"]["spec"]["initContainers"]], ["configure"])
+        self.assertEqual([c["name"] for c in base["spec"]["template"]["spec"]["initContainers"]], ["browser-binary", "camofox", "configure"])
         for resource in self.resources:
-            if resource["kind"] == "Service":
+            if resource["kind"] == "Service" and resource["metadata"]["name"] == "hermes-dashboard-samwise":
                 self.assertEqual([p["port"] for p in resource["spec"]["ports"]], [9119])
         config = yaml.safe_load(next(r for r in self.resources if r["kind"] == "ConfigMap")["data"]["config.yaml"])
         self.assertEqual(config["mcp_servers"]["mealie"], {"url": "http://127.0.0.1:8000/mcp"})
@@ -76,7 +76,7 @@ class InstanceTests(unittest.TestCase):
 
     def test_only_fresh_instance_storage_is_managed_and_mounted(self):
         claims = {r["metadata"]["name"]: r for r in self.resources if r["kind"] == "PersistentVolumeClaim"}
-        self.assertEqual(set(claims), {"hermes-samwise"})
+        self.assertEqual(set(claims), {"hermes-samwise", "hermes-browser-samwise"})
         pod = next(r for r in self.resources if r["kind"] == "Deployment")["spec"]["template"]["spec"]
         self.assertEqual(next(v for v in pod["volumes"] if v["name"] == "data")["persistentVolumeClaim"]["claimName"], "hermes-samwise")
         self.assertFalse(any(r["kind"] == "Pod" for r in self.resources))
@@ -96,7 +96,7 @@ class InstanceTests(unittest.TestCase):
             shutil.copytree(ROOT, copy)
             second = copy / "instances/test-other"
             shutil.copytree(copy / "instances/samwise", second)
-            for name in ("kustomization.yaml", "config.yaml", "ingress.yaml", "mealie-mcp.yaml"):
+            for name in ("kustomization.yaml", "config.yaml", "ingress.yaml", "browser-ingress.yaml", "mealie-mcp.yaml"):
                 path = second / name
                 path.write_text(path.read_text().replace("samwise", "test-other"))
             other = render(second)
@@ -112,6 +112,10 @@ class InstanceTests(unittest.TestCase):
             self.assertEqual(service["spec"]["selector"], selector)
             volumes = deployment["spec"]["template"]["spec"]["volumes"]
             self.assertEqual(next(v for v in volumes if v["name"] == "data")["persistentVolumeClaim"]["claimName"], "hermes-" + instance)
+            self.assertEqual(next(v for v in volumes if v["name"] == "browser-data")["persistentVolumeClaim"]["claimName"], "hermes-browser-" + instance)
+            browser_route = next(r for r in resources if r["kind"] == "IngressRoute")
+            self.assertEqual(browser_route["spec"]["routes"][1]["services"][0]["name"], "hermes-browser-" + instance)
+            self.assertEqual(browser_route["spec"]["routes"][1]["middlewares"][1]["name"], "hermes-browser-auth-" + instance)
             mealie = next(c for c in deployment["spec"]["template"]["spec"]["initContainers"] if c["name"] == "mealie-mcp")
             token = next(e for e in mealie["env"] if e["name"] == "MEALIE_API_TOKEN")
             self.assertEqual(token["valueFrom"]["secretKeyRef"]["name"], "hermes-mealie-" + instance)
