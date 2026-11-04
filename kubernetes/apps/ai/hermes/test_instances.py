@@ -33,7 +33,7 @@ class InstanceTests(unittest.TestCase):
         self.assertNotIn("serviceAccountName", pod)
         self.assertEqual([c["name"] for c in pod["containers"]], ["gateway"])
         self.assertFalse(any(r["kind"] in ("ClusterRoleBinding", "RoleBinding", "ServiceAccount") for r in self.resources))
-        self.assertEqual({v["name"] for v in pod["volumes"]}, {"data", "config", "mealie-tmp", "browser-binary", "browser-data", "browser-tmp", "browser-shm"})
+        self.assertEqual({v["name"] for v in pod["volumes"]}, {"data", "config", "managed-env", "mealie-tmp", "browser-binary", "browser-data", "browser-tmp", "browser-shm"})
         gateway = pod["containers"][0]
         self.assertNotIn("command", gateway)
         self.assertEqual(gateway["args"], ["gateway", "run"])
@@ -98,7 +98,7 @@ class InstanceTests(unittest.TestCase):
         cm = next(r for r in self.resources if r["kind"] == "ConfigMap")
         self.assertEqual(set(cm["data"]), {"init.py", "smoke_test.py", "config.yaml", "SOUL.md"})
         self.assertIn("Samwise Gamgee", cm["data"]["SOUL.md"])
-        self.assertIn("everyone who has access", cm["data"]["SOUL.md"])
+        self.assertEqual(cm["data"]["SOUL.md"], (ROOT / "instances/samwise/SOUL.md").read_text())
         for metadata in ("Rohlík", "sveatlo", "Sväťo", "OpenAI", "subscription", "homelab", "administrator access"):
             self.assertNotIn(metadata, cm["data"]["SOUL.md"])
 
