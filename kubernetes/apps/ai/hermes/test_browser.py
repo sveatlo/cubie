@@ -76,12 +76,25 @@ class BrowserTests(unittest.TestCase):
         provider = next(e for e in entries if e["model"] == "authentik_providers_proxy.proxyprovider")
         self.assertEqual(provider["attrs"]["mode"], "forward_single")
         self.assertEqual(provider["attrs"]["external_host"], "https://samwise-browser.${DOMAIN_0}")
-        app = next(e for e in entries if e.get("id") == "samwise-browser-application")
+        ids = {e["id"] for e in entries if "id" in e}
+        self.assertTrue(ids)
+        self.assertTrue(all(local_id.startswith("hermes-samwise-") for local_id in ids))
+        pending = [entries]
+        while pending:
+            value = pending.pop()
+            if isinstance(value, dict):
+                if set(value) == {"key"}:
+                    self.assertIn(value["key"], ids)
+                else:
+                    pending.extend(value.values())
+            elif isinstance(value, list):
+                pending.extend(value)
+        app = next(e for e in entries if e.get("id") == "hermes-samwise-browser-application")
         self.assertEqual(app["attrs"]["provider"], {"key": provider["id"]})
         bindings = [e for e in entries if e["model"] == "authentik_policies.policybinding"
                     and e["identifiers"]["target"] == {"key": app["id"]}]
         self.assertEqual(len(bindings), 1)
-        self.assertEqual(bindings[0]["identifiers"]["group"], {"key": "samwise-access"})
+        self.assertEqual(bindings[0]["identifiers"]["group"], {"key": "hermes-samwise-access"})
         self.assertTrue(bindings[0]["attrs"]["enabled"])
         outpost = next(e for e in entries if e["model"] == "authentik_outposts.outpost")
         self.assertEqual(outpost["identifiers"], {"managed": "goauthentik.io/outposts/embedded"})

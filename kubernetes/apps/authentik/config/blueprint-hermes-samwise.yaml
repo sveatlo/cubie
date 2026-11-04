@@ -10,7 +10,7 @@ data:
       name: hermes-samwise
     entries:
       - model: authentik_core.group
-        id: samwise-access
+        id: hermes-samwise-access
         state: present
         identifiers:
           name: app_hermes_samwise
@@ -19,7 +19,7 @@ data:
             - !Find [authentik_core.user, [username, sveatlo]]
 
       - model: authentik_providers_oauth2.oauth2provider
-        id: samwise-provider
+        id: hermes-samwise-provider
         state: present
         identifiers:
           name: hermes-samwise
@@ -43,28 +43,28 @@ data:
             - !Find [authentik_providers_oauth2.scopemapping, [scope_name, offline_access]]
 
       - model: authentik_core.application
-        id: samwise-application
+        id: hermes-samwise-application
         state: present
         identifiers:
           slug: hermes-samwise
         attrs:
           name: Samwise (Hermes)
           slug: hermes-samwise
-          provider: !KeyOf samwise-provider
+          provider: !KeyOf hermes-samwise-provider
           meta_launch_url: https://samwise.${DOMAIN_0}/
           policy_engine_mode: all
 
       - model: authentik_policies.policybinding
         state: present
         identifiers:
-          target: !KeyOf samwise-application
-          group: !KeyOf samwise-access
+          target: !KeyOf hermes-samwise-application
+          group: !KeyOf hermes-samwise-access
           order: 0
         attrs:
           enabled: true
 
       - model: authentik_providers_proxy.proxyprovider
-        id: samwise-browser-provider
+        id: hermes-samwise-browser-provider
         state: present
         identifiers:
           name: hermes-samwise-browser
@@ -75,21 +75,21 @@ data:
           invalidation_flow: !Find [authentik_flows.flow, [slug, default-provider-invalidation-flow]]
 
       - model: authentik_core.application
-        id: samwise-browser-application
+        id: hermes-samwise-browser-application
         state: present
         identifiers:
           slug: hermes-samwise-browser
         attrs:
           name: Samwise Browser
-          provider: !KeyOf samwise-browser-provider
+          provider: !KeyOf hermes-samwise-browser-provider
           meta_launch_url: https://samwise-browser.${DOMAIN_0}/vnc.html?autoconnect=true&resize=remote
           policy_engine_mode: all
 
       - model: authentik_policies.policybinding
         state: present
         identifiers:
-          target: !KeyOf samwise-browser-application
-          group: !KeyOf samwise-access
+          target: !KeyOf hermes-samwise-browser-application
+          group: !KeyOf hermes-samwise-access
           order: 0
         attrs:
           enabled: true
@@ -101,7 +101,7 @@ data:
         attrs:
           type: proxy
           providers:
-            - !KeyOf samwise-browser-provider
+            - !KeyOf hermes-samwise-browser-provider
 
       - model: authentik_core.application
         state: absent
