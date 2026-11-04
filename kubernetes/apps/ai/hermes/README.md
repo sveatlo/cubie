@@ -40,6 +40,10 @@ hack/apply-secret.sh kubernetes/apps/ai/config/hermes-samwise-homeassistant.yaml
 
 The first Secret contains only the existing four Telegram settings. The second contains only the existing `HASS_URL` and `HASS_TOKEN`. No operator, GitHub or webhook credentials are copied. Do not restore the old `.env`.
 
+The configure init container projects these two Secrets into `/managed-env` and synchronizes their keys into `/opt/data/.env` before invoking Hermes. The gateway can read the same projection; browser and Mealie containers cannot. The profile file is mode `0600`, preserves unrelated runtime settings, and records managed key names (not values) in `.managed-env-keys.json`. A later rollout refreshes rotated values and removes keys deleted from the managed Secrets. Secret updates still require a Pod rollout; changing projected files alone does not rerun initialization.
+
+This profile copy is required by Hermes v0.22.7: `hermes_cli.config.reload_env()` removes known environment variables absent from `.env`, including Kubernetes-injected Telegram and Home Assistant settings. An owner-issued `/reload` reproduced the failure on 2026-11-04: ID `221832708` was authorized initially, then denied after its process allowlist was removed. A gateway-only restart restored the injected environment; syncing the managed keys into the profile prevents the next reload from deleting them. SOPS-encrypted Secrets remain the source of truth; do not rotate these managed values through the dashboard.
+
 OpenAI and Rohlík require fresh sign-ins. No OAuth files or other state are copied from the old PVC. Stop the old gateway before starting Samwise so two instances do not poll the same Telegram bot.
 
 ## Mealie
@@ -167,6 +171,9 @@ Copy `instances/samwise/` to a new instance directory. Start its replica count a
 All instances start at zero replicas unless their overlay explicitly activates them. Never add a second instance without reviewing both rendered selectors and credential routing.
 
 ## References
+
+- [Hermes Telegram settings and profile `.env`](https://hermes-agent.nousresearch.com/docs/user-guide/messaging/telegram)
+- [python-dotenv file updates](https://bbc2.github.io/python-dotenv/reference/)
 
 - [Kustomize resource-name changes](https://kubectl.docs.kubernetes.io/references/kustomize/kustomization/patches/)
 - [Kubernetes immutable Deployment selectors](https://kubernetes.io/docs/concepts/workloads/controllers/deployment/#label-selector-updates)

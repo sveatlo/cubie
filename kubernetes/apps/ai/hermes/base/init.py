@@ -1,7 +1,10 @@
+import json
 import os
 from pathlib import Path
 import shutil
 import subprocess
+
+from dotenv import set_key, unset_key
 
 
 PLUGIN_REFS = {
@@ -10,9 +13,30 @@ PLUGIN_REFS = {
 }
 
 
-def initialize(home, config, run=subprocess.run):
+def sync_managed_env(home, source):
+    values = {
+        path.name: path.read_text()
+        for path in source.iterdir()
+        if not path.name.startswith(".") and path.is_file()
+    }
+    marker = home / ".managed-env-keys.json"
+    previous = set(json.loads(marker.read_text())) if marker.exists() else set()
+    env = home / ".env"
+    env.touch(mode=0o600, exist_ok=True)
+    env.chmod(0o600)
+    for key in previous - values.keys():
+        unset_key(env, key)
+    for key, value in values.items():
+        set_key(env, key, value)
+    marker.write_text(json.dumps(sorted(values)) + "\n")
+    marker.chmod(0o600)
+
+
+def initialize(home, config, run=subprocess.run, managed_env=None):
     home.mkdir(parents=True, exist_ok=True)
     (home / "workspace").mkdir(exist_ok=True)
+    if managed_env is not None:
+        sync_managed_env(home, managed_env)
     soul = home / "SOUL.md"
     if not soul.exists():
         shutil.copyfile(config / "SOUL.md", soul)
@@ -34,4 +58,4 @@ def initialize(home, config, run=subprocess.run):
 
 if __name__ == "__main__":
     os.umask(0o077)
-    initialize(Path(os.environ["HERMES_HOME"]), Path("/config"))
+    initialize(Path(os.environ["HERMES_HOME"]), Path("/config"), managed_env=Path("/managed-env"))

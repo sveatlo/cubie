@@ -65,3 +65,22 @@ patches:
       - op: replace
         path: /spec/template/spec/containers/0/envFrom/2/secretRef/name
         value: hermes-samwise-homeassistant
+  - target:
+      kind: Deployment
+      name: hermes
+    patch: |-
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: hermes
+      spec:
+        template:
+          spec:
+            volumes:
+              - name: managed-env
+                projected:
+                  sources:
+                    - secret:
+                        name: hermes-samwise-credentials
+                    - secret:
+                        name: hermes-samwise-homeassistant

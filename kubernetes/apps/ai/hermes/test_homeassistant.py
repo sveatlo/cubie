@@ -25,7 +25,7 @@ class HomeAssistantTests(unittest.TestCase):
                 "terminal", "file", "homeassistant", "mcp-rohlik-mcp", "mcp-mealie", "camofox",
             ])
 
-    def test_only_gateway_receives_full_ha_credentials(self):
+    def test_only_gateway_and_configure_can_read_managed_credentials(self):
         expected = [
             {"secretRef": {"name": "hermes-samwise-homeassistant"}},
             {"prefix": "_HERMES_FORCE_", "secretRef": {"name": "hermes-samwise-homeassistant"}},
@@ -35,6 +35,18 @@ class HomeAssistantTests(unittest.TestCase):
                     if ref.get("secretRef", {}).get("name") == "hermes-samwise-homeassistant"]
             self.assertEqual(refs, expected if container["name"] == "gateway" else [])
             self.assertFalse(any("HASS" in env["name"] for env in container.get("env", [])))
+            mounts = [mount for mount in container.get("volumeMounts", []) if mount["name"] == "managed-env"]
+            self.assertEqual(mounts, [{
+                "name": "managed-env", "mountPath": "/managed-env", "readOnly": True,
+            }] if container["name"] in {"configure", "gateway"} else [])
+        volume = next(volume for volume in self.pod["volumes"] if volume["name"] == "managed-env")
+        self.assertEqual(volume["projected"], {
+            "defaultMode": 0o440,
+            "sources": [
+                {"secret": {"name": "hermes-samwise-credentials"}},
+                {"secret": {"name": "hermes-samwise-homeassistant"}},
+            ],
+        })
 
 
 if __name__ == "__main__":

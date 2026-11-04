@@ -4,6 +4,8 @@ import tempfile
 import unittest
 from unittest.mock import Mock
 
+from dotenv import dotenv_values
+
 
 spec = importlib.util.spec_from_file_location("hermes_init", Path(__file__).parent / "base/init.py")
 hermes_init = importlib.util.module_from_spec(spec)
@@ -70,6 +72,44 @@ class InitTests(unittest.TestCase):
         self.assertEqual(soul.read_text(), "Runtime edit\n")
         self.assertEqual(soul.stat().st_mtime_ns, before.st_mtime_ns)
         self.assertEqual((self.home / "config.yaml").read_text(), "model: updated\n")
+
+    def test_managed_env_survives_reload_inputs_and_preserves_runtime_settings(self):
+        self.home.mkdir()
+        env = self.home / ".env"
+        env.write_text("# Personal setting\nRUNTIME_SETTING=keep\nTELEGRAM_ALLOWED_USERS=stale\n")
+        source = self.root / "managed-env"
+        source.mkdir()
+        values = {
+            "TELEGRAM_ALLOWED_USERS": "221832708",
+            "TELEGRAM_BOT_TOKEN": "test-token-with-'quotes'\\and\nnewlines",
+            "HASS_URL": "https://home.example.test",
+        }
+        for key, value in values.items():
+            (source / key).write_text(value)
+        (source / "..data").mkdir()
+        hermes_init.initialize(self.home, self.config, self.run, managed_env=source)
+        parsed = dotenv_values(env, interpolate=False)
+        self.assertEqual(parsed, {"RUNTIME_SETTING": "keep", **values})
+        self.assertIn("# Personal setting", env.read_text())
+        self.assertEqual(env.stat().st_mode & 0o777, 0o600)
+        self.assertEqual((self.home / ".managed-env-keys.json").stat().st_mode & 0o777, 0o600)
+        self.assertNotIn("test-token", (self.home / ".managed-env-keys.json").read_text())
+
+    def test_managed_env_rotates_and_revokes_only_managed_keys(self):
+        source = self.root / "managed-env"
+        source.mkdir()
+        token = source / "TELEGRAM_BOT_TOKEN"
+        token.write_text("old-token")
+        hermes_init.initialize(self.home, self.config, self.run, managed_env=source)
+        env = self.home / ".env"
+        with env.open("a") as output:
+            output.write("RUNTIME_SETTING=keep\n")
+        token.write_text("new-token")
+        hermes_init.initialize(self.home, self.config, self.run, managed_env=source)
+        self.assertEqual(dotenv_values(env)["TELEGRAM_BOT_TOKEN"], "new-token")
+        token.unlink()
+        hermes_init.initialize(self.home, self.config, self.run, managed_env=source)
+        self.assertEqual(dotenv_values(env), {"RUNTIME_SETTING": "keep"})
 
     def test_does_not_replace_intentionally_empty_identity(self):
         self.initialize()

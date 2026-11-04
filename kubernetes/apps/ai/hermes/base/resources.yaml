@@ -177,6 +177,9 @@ spec:
             limits:
               memory: 512Mi
           volumeMounts: &mounts
+            - name: managed-env
+              mountPath: /managed-env
+              readOnly: true
             - name: data
               mountPath: /opt/data
             - name: config
@@ -236,6 +239,14 @@ spec:
               memory: 2Gi
           volumeMounts: *mounts
       volumes:
+        - name: managed-env
+          projected:
+            defaultMode: 0440
+            sources:
+              - secret:
+                  name: hermes-credentials
+              - secret:
+                  name: hermes-homeassistant
         - name: browser-binary
           emptyDir:
             sizeLimit: 2Gi
