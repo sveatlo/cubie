@@ -50,5 +50,5 @@ dashboard:
     provider: self-hosted
     self_hosted:
       issuer: https://auth.${DOMAIN_0}/application/o/hermes-samwise/
-      client_id: hermes-dashboard-samwise
+      client_id: hermes-samwise-dashboard
       scopes: openid profile email offline_access

@@ -37,7 +37,7 @@ class BrowserTests(unittest.TestCase):
             "browser-data", "browser-binary", "browser-tmp", "browser-shm",
         })
         volumes = {v["name"]: v for v in self.pod["volumes"]}
-        self.assertEqual(volumes["browser-data"]["persistentVolumeClaim"]["claimName"], "hermes-browser-samwise")
+        self.assertEqual(volumes["browser-data"]["persistentVolumeClaim"]["claimName"], "hermes-samwise-browser")
         self.assertGreaterEqual(self.pod["terminationGracePeriodSeconds"], 60)
         gateway = self.pod["containers"][0]
         self.assertNotIn("browser-data", {v["name"] for v in gateway["volumeMounts"]})
@@ -68,7 +68,7 @@ class BrowserTests(unittest.TestCase):
         self.assertEqual(browser["middlewares"], [lan, {"name": middleware["metadata"]["name"]}])
         self.assertEqual(middleware["spec"]["forwardAuth"]["address"],
                          "http://authentik-server.authentik.svc.cluster.local/outpost.goauthentik.io/auth/traefik")
-        service = next(r for r in self.resources if r["kind"] == "Service" and r["metadata"]["name"] == "hermes-browser-samwise")
+        service = next(r for r in self.resources if r["kind"] == "Service" and r["metadata"]["name"] == "hermes-samwise-browser")
         self.assertEqual(browser["services"], [{"name": service["metadata"]["name"], "port": "novnc"}])
 
     def test_single_app_provider_reuses_samwise_group_and_embedded_outpost(self):

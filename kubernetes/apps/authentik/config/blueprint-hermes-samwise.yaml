@@ -26,7 +26,7 @@ data:
         attrs:
           name: hermes-samwise
           client_type: public
-          client_id: hermes-dashboard-samwise
+          client_id: hermes-samwise-dashboard
           grant_types:
             - authorization_code
             - refresh_token

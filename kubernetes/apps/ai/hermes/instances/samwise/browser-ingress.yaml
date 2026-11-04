@@ -1,7 +1,7 @@
 apiVersion: traefik.io/v1alpha1
 kind: Middleware
 metadata:
-  name: hermes-browser-auth
+  name: hermes-samwise-browser-auth
 spec:
   forwardAuth:
     address: http://authentik-server.authentik.svc.cluster.local/outpost.goauthentik.io/auth/traefik
@@ -10,7 +10,7 @@ spec:
 apiVersion: traefik.io/v1alpha1
 kind: IngressRoute
 metadata:
-  name: hermes-browser
+  name: hermes-samwise-browser
 spec:
   entryPoints:
     - websecure
@@ -31,8 +31,8 @@ spec:
       middlewares:
         - name: lan-only
           namespace: traefik
-        - name: hermes-browser-auth-samwise
+        - name: hermes-samwise-browser-auth
       services:
-        - name: hermes-browser-samwise
+        - name: hermes-samwise-browser
           port: novnc
   tls: {}
