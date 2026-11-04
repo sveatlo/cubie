@@ -19,11 +19,13 @@ class InstanceTests(unittest.TestCase):
     def setUpClass(cls):
         cls.resources = render(ROOT)
 
-    def test_staged_instance_has_one_gateway_and_no_operator_permissions(self):
+    def test_active_instance_has_one_gateway_and_no_operator_permissions(self):
         deployments = [r for r in self.resources if r["kind"] == "Deployment"]
         self.assertEqual([d["metadata"]["name"] for d in deployments], ["hermes-samwise"])
         deployment = deployments[0]
-        self.assertEqual(deployment["spec"]["replicas"], 0)
+        self.assertEqual(deployment["spec"]["replicas"], 1)
+        base = render(ROOT / "base")
+        self.assertEqual(next(r for r in base if r["kind"] == "Deployment")["spec"]["replicas"], 0)
         self.assertEqual(deployment["spec"]["strategy"]["type"], "Recreate")
         pod = deployment["spec"]["template"]["spec"]
         self.assertFalse(pod["automountServiceAccountToken"])
