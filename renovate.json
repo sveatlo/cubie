@@ -34,6 +34,11 @@
     ],
     "packageRules": [
         {
+            "description": "Track Mealie MCP releases and same-version revision builds",
+            "matchPackageNames": ["ghcr.io/djwmarcx/better-mealie-mcp"],
+            "versioning": "regex:^(?<major>\\d+)\\.(?<minor>\\d+)\\.(?<patch>\\d+)(?:-r(?<build>\\d+))?$"
+        },
+        {
             "description": "Compare Bookshelf versions without changing hardcover/softcover",
             "matchPackageNames": ["ghcr.io/pennydreadful/bookshelf"],
             "versioning": "regex:^(?<compatibility>hardcover|softcover)-v(?<major>\\d+)\\.(?<minor>\\d+)\\.(?<patch>\\d+)\\.(?<build>\\d+)$"

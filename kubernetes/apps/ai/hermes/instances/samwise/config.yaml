@@ -21,6 +21,8 @@ platforms:
   homeassistant:
     enabled: false
 mcp_servers:
+  mealie:
+    url: http://127.0.0.1:8000/mcp
   rohlik-mcp:
     url: https://mcp.rohlik.cz/mcp
     auth: oauth
@@ -30,6 +32,7 @@ platform_toolsets:
     - file
     - homeassistant
     - mcp-rohlik-mcp
+    - mcp-mealie
   cli: *household_tools
   api_server: *household_tools
 telegram:

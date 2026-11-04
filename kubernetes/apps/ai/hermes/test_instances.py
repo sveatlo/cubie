@@ -33,7 +33,7 @@ class InstanceTests(unittest.TestCase):
         self.assertNotIn("serviceAccountName", pod)
         self.assertEqual([c["name"] for c in pod["containers"]], ["gateway"])
         self.assertFalse(any(r["kind"] in ("ClusterRoleBinding", "RoleBinding", "ServiceAccount") for r in self.resources))
-        self.assertEqual({v["name"] for v in pod["volumes"]}, {"data", "config"})
+        self.assertEqual({v["name"] for v in pod["volumes"]}, {"data", "config", "mealie-tmp"})
         gateway = pod["containers"][0]
         self.assertNotIn("command", gateway)
         self.assertEqual(gateway["args"], ["gateway", "run"])
@@ -46,11 +46,39 @@ class InstanceTests(unittest.TestCase):
         for name in ("startupProbe", "readinessProbe", "livenessProbe"):
             self.assertGreater(gateway[name]["timeoutSeconds"], 2)
 
+    def test_mealie_starts_before_gateway_and_is_private_to_the_instance(self):
+        deployment = next(r for r in self.resources if r["kind"] == "Deployment")
+        pod = deployment["spec"]["template"]["spec"]
+        sidecar = next(c for c in pod["initContainers"] if c["name"] == "mealie-mcp")
+        self.assertEqual(sidecar["restartPolicy"], "Always")
+        self.assertIn("startupProbe", sidecar)
+        self.assertIn("@sha256:", sidecar["image"])
+        self.assertEqual(sidecar["args"], ["--http", "8000"])
+        env = {e["name"]: e for e in sidecar["env"]}
+        self.assertEqual(env["MCP_HOST"]["value"], "127.0.0.1")
+        self.assertEqual(env["MEALIE_BASE_URL"]["value"], "http://mealie.mealie.svc.cluster.local:9000")
+        self.assertEqual(env["MEALIE_API_TOKEN"]["valueFrom"]["secretKeyRef"], {
+            "name": "hermes-mealie-samwise", "key": "MEALIE_API_TOKEN",
+        })
+        self.assertTrue(sidecar["securityContext"]["readOnlyRootFilesystem"])
+        self.assertEqual([v["name"] for v in sidecar["volumeMounts"]], ["mealie-tmp"])
+        self.assertNotIn("MEALIE_INCLUDE_TAGS", env)
+        self.assertNotIn("MEALIE_EXCLUDE_TAGS", env)
+        base = next(r for r in render(ROOT / "base") if r["kind"] == "Deployment")
+        self.assertEqual([c["name"] for c in base["spec"]["template"]["spec"]["initContainers"]], ["configure"])
+        for resource in self.resources:
+            if resource["kind"] == "Service":
+                self.assertEqual([p["port"] for p in resource["spec"]["ports"]], [9119])
+        config = yaml.safe_load(next(r for r in self.resources if r["kind"] == "ConfigMap")["data"]["config.yaml"])
+        self.assertEqual(config["mcp_servers"]["mealie"], {"url": "http://127.0.0.1:8000/mcp"})
+        for platform in ("telegram", "cli", "api_server"):
+            self.assertIn("mcp-mealie", config["platform_toolsets"][platform])
+
     def test_only_fresh_instance_storage_is_managed_and_mounted(self):
         claims = {r["metadata"]["name"]: r for r in self.resources if r["kind"] == "PersistentVolumeClaim"}
         self.assertEqual(set(claims), {"hermes-samwise"})
         pod = next(r for r in self.resources if r["kind"] == "Deployment")["spec"]["template"]["spec"]
-        self.assertEqual(pod["volumes"][0]["persistentVolumeClaim"]["claimName"], "hermes-samwise")
+        self.assertEqual(next(v for v in pod["volumes"] if v["name"] == "data")["persistentVolumeClaim"]["claimName"], "hermes-samwise")
         self.assertFalse(any(r["kind"] == "Pod" for r in self.resources))
         self.assertFalse(any(v.get("persistentVolumeClaim", {}).get("claimName") == "hermes" for v in pod["volumes"]))
 
@@ -68,7 +96,7 @@ class InstanceTests(unittest.TestCase):
             shutil.copytree(ROOT, copy)
             second = copy / "instances/test-other"
             shutil.copytree(copy / "instances/samwise", second)
-            for name in ("kustomization.yaml", "config.yaml", "ingress.yaml"):
+            for name in ("kustomization.yaml", "config.yaml", "ingress.yaml", "mealie-mcp.yaml"):
                 path = second / name
                 path.write_text(path.read_text().replace("samwise", "test-other"))
             other = render(second)
@@ -83,7 +111,10 @@ class InstanceTests(unittest.TestCase):
             service = next(r for r in resources if r["kind"] == "Service")
             self.assertEqual(service["spec"]["selector"], selector)
             volumes = deployment["spec"]["template"]["spec"]["volumes"]
-            self.assertEqual(volumes[0]["persistentVolumeClaim"]["claimName"], "hermes-" + instance)
+            self.assertEqual(next(v for v in volumes if v["name"] == "data")["persistentVolumeClaim"]["claimName"], "hermes-" + instance)
+            mealie = next(c for c in deployment["spec"]["template"]["spec"]["initContainers"] if c["name"] == "mealie-mcp")
+            token = next(e for e in mealie["env"] if e["name"] == "MEALIE_API_TOKEN")
+            self.assertEqual(token["valueFrom"]["secretKeyRef"]["name"], "hermes-mealie-" + instance)
 
     def test_alertmanager_keeps_email_without_hermes_receiver(self):
         values = yaml.safe_load((ROOT.parents[2] / "infrastructure/kube-prometheus-stack/values.yaml").read_text())
