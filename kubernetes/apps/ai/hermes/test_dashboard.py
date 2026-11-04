@@ -41,10 +41,10 @@ class DashboardTests(unittest.TestCase):
         self.assertNotIn("client_secret", oidc)
         for proxy in dashboard["trusted_proxies"]:
             self.assertGreater(ipaddress.ip_network(proxy).prefixlen, 0)
-        ingress = self.resource("Ingress", "hermes-dashboard-samwise")
+        ingress = self.resource("Ingress", "hermes-samwise-dashboard")
         self.assertEqual(ingress["spec"]["rules"][0]["host"], "samwise.${DOMAIN_0}")
         backend = ingress["spec"]["rules"][0]["http"]["paths"][0]["backend"]["service"]
-        self.assertEqual(backend["name"], "hermes-dashboard-samwise")
+        self.assertEqual(backend["name"], "hermes-samwise-dashboard")
         self.assertEqual(ingress["metadata"]["annotations"]["traefik.ingress.kubernetes.io/router.tls"], "true")
         self.assertNotIn("traefik.ingress.kubernetes.io/router.middlewares", ingress["metadata"]["annotations"])
 

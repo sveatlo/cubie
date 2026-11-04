@@ -1,15 +1,15 @@
 # Hermes household instances
 
-Samwise is the first household instance. The shared `base/` supplies the pinned Hermes runtime, Camofox sidecar, dashboard/browser Services, separate runtime/browser PVCs and initialization. Each directory under `instances/` supplies identity, configuration, hostname, resource suffix, selectors and Secret references.
+Samwise is the first household instance. The shared `base/` supplies the pinned Hermes runtime, Camofox sidecar, dashboard/browser Services, separate runtime/browser PVCs and initialization. Each directory under `instances/` supplies identity, configuration, hostname, resource-name patches, selectors and Secret references.
 
 | Setting | Samwise |
 | --- | --- |
 | Deployment / PVC | `ai/hermes-samwise` |
 | Dashboard | `https://samwise.${DOMAIN_0}` |
 | Browser desktop | `https://samwise-browser.${DOMAIN_0}/vnc.html?autoconnect=true&resize=remote` |
-| Browser PVC | `ai/hermes-browser-samwise` |
+| Browser PVC | `ai/hermes-samwise-browser` |
 | Authentik application | `Samwise (Hermes)`, slug `hermes-samwise` |
-| Dashboard OAuth client | `hermes-dashboard-samwise`, public client with PKCE |
+| Dashboard OAuth client | `hermes-samwise-dashboard`, public client with PKCE |
 | Access group | `app_hermes_samwise`, initially only `sveatlo` |
 | Telegram | Existing bot token, username, owner allowlist and home channel |
 | Model | OpenAI subscription OAuth with a fresh sign-in, no paid API fallback |
@@ -34,8 +34,8 @@ The dashboard keeps native Authentik SSO as its sole login gate; its ingress is 
 Encrypted files are not Kustomize resources. Apply them manually at cutover:
 
 ```bash
-hack/apply-secret.sh kubernetes/apps/ai/config/hermes-credentials-samwise.yaml.sops
-hack/apply-secret.sh kubernetes/apps/ai/config/hermes-homeassistant-samwise.yaml.sops
+hack/apply-secret.sh kubernetes/apps/ai/config/hermes-samwise-credentials.yaml.sops
+hack/apply-secret.sh kubernetes/apps/ai/config/hermes-samwise-homeassistant.yaml.sops
 ```
 
 The first Secret contains only the existing four Telegram settings. The second contains only the existing `HASS_URL` and `HASS_TOKEN`. No operator, GitHub or webhook credentials are copied. Do not restore the old `.env`.
@@ -46,18 +46,18 @@ OpenAI and Rohlík require fresh sign-ins. No OAuth files or other state are cop
 
 Samwise uses `djwmarcx/better-mealie-mcp:3.30.0`, pinned by image digest to match Mealie v3.30.0. Renovate's Kubernetes manager tracks this image and its digest. A package-specific versioning rule also treats upstream `-r2`, `-r3`, etc. revisions as stable build updates rather than separate compatibility channels. All 283 tools are exposed, including administrative endpoints. Actual permissions come from the API token's account; this instance deliberately uses a separately named token from the owner's existing account. Revoking that token does not require changing the owner's password.
 
-The MCP runs as a Kubernetes native sidecar in Samwise's Pod. Its startup probe must pass before the gateway starts. It listens on `127.0.0.1:8000/mcp`, with no Service or ingress, and calls `http://mealie.mealie.svc.cluster.local:9000`. It receives no Hermes PVC or configuration mount. Only this sidecar receives `MEALIE_API_TOKEN`, from the dedicated `ai/hermes-mealie-samwise` Secret; the gateway accesses Mealie through MCP rather than receiving its token directly. The sidecar has a read-only root filesystem and a small temporary volume.
+The MCP runs as a Kubernetes native sidecar in Samwise's Pod. Its startup probe must pass before the gateway starts. It listens on `127.0.0.1:8000/mcp`, with no Service or ingress, and calls `http://mealie.mealie.svc.cluster.local:9000`. It receives no Hermes PVC or configuration mount. Only this sidecar receives `MEALIE_API_TOKEN`, from the dedicated `ai/hermes-samwise-mealie` Secret; the gateway accesses Mealie through MCP rather than receiving its token directly. The sidecar has a read-only root filesystem and a small temporary volume.
 
 Mealie tools are available to Telegram, CLI and dashboard/API sessions. Hermes's default tool-search behavior defers MCP schemas until needed. The full tool inventory remains available; long names are shortened by Hermes to fit provider limits. Listing tools alone does not prove the API token works.
 
 Before merging the integration or rotating its token:
 
 1. Create a separately named token under Mealie's Profile → Manage API Tokens (`/user/profile/api-tokens`). The account must have the permissions Samwise needs; this token has no independent API scopes.
-2. Store it in the SOPS-encrypted `kubernetes/apps/ai/config/hermes-mealie-samwise.yaml.sops`, Secret `ai/hermes-mealie-samwise`, key `MEALIE_API_TOKEN`. Use `hack/edit-secret.sh`; never commit plaintext or add it to the Telegram/Home Assistant Secrets.
+2. Store it in the SOPS-encrypted `kubernetes/apps/ai/config/hermes-samwise-mealie.yaml.sops`, Secret `ai/hermes-samwise-mealie`, key `MEALIE_API_TOKEN`. Use `hack/edit-secret.sh`; never commit plaintext or add it to the Telegram/Home Assistant Secrets.
 3. Apply it before the owner merges the integration:
 
    ```bash
-   hack/apply-secret.sh kubernetes/apps/ai/config/hermes-mealie-samwise.yaml.sops
+   hack/apply-secret.sh kubernetes/apps/ai/config/hermes-samwise-mealie.yaml.sops
    ```
 
 The initial dedicated Secret was applied on 2026-11-04, and a read-only `/api/users/self` request verified its authentication and administrative/food-organization permissions. The integration still requires an owner merge and post-sync MCP discovery/read verification. A missing Secret or failed sidecar startup blocks Samwise's rollout; do not merge before provisioning it. A separate instance needs its own token and Secret reference.
@@ -70,7 +70,7 @@ The external noVNC ingress requires both the LAN allowlist and Authentik forward
 
 The blueprint assigns this provider to Authentik's embedded outpost. Its `providers` field is the complete membership list, not an append operation. Put future embedded-outpost providers in the same canonical list or this blueprint will detach them. The outpost must already have its public `authentik_host` configured; the blueprint preserves that existing configuration.
 
-Managed persistence gives each Hermes profile a stable browser identity. Cookies and localStorage live on `hermes-browser-samwise`, separate from Hermes files; IndexedDB is not enabled. Conversations using the same profile share its logged-in browser state. No automatic logout is performed at session end. The Node server runs directly as PID 1 so SIGTERM saves state before the browser exits; the Pod allows 60 seconds for shutdown, shared with the gateway and other sidecars. Forced termination or a node failure can lose changes since the last save. NFS administrators can read stored sessions; treat this PVC as credential-bearing data. Crash-report telemetry is disabled.
+Managed persistence gives each Hermes profile a stable browser identity. Cookies and localStorage live on `hermes-samwise-browser`, separate from Hermes files; IndexedDB is not enabled. Conversations using the same profile share its logged-in browser state. No automatic logout is performed at session end. The Node server runs directly as PID 1 so SIGTERM saves state before the browser exits; the Pod allows 60 seconds for shutdown, shared with the gateway and other sidecars. Forced termination or a node failure can lose changes since the last save. NFS administrators can read stored sessions; treat this PVC as credential-bearing data. Crash-report telemetry is disabled.
 
 Requested browsing can reach both public sites and homelab services. Page text is untrusted input. Purchases, payments, account/permission changes, destructive actions and sharing private data require confirmation. These are instructions to the agent, not technical permission controls. Use the protected desktop for manual sign-in rather than sending passwords in chat: typed fields, including passwords, can appear in model snapshots. Pages can attempt requests to LAN destinations, so allowing homelab browsing also permits that exposure.
 
@@ -83,6 +83,26 @@ Before rollout:
 3. Run `hermes camofox status` in the gateway. It must report a reachable server and managed persistence. Ask for a public page and confirm browser tool calls in Telegram and the dashboard.
 4. Test the desktop and `/websockify`: unauthenticated LAN clients must redirect to Authentik, a group member must connect, a nonmember must be denied, and a non-LAN request must be rejected. Local manifest tests do not establish these live authorization results.
 5. Sign in through the desktop. Use a normal rollout restart to check that the login survives before relying on persistence. Do not test persistence with purchases, cart changes or home-device writes.
+
+## Internal identifier cutover
+
+Resources use `hermes-samwise` followed by the component (`-dashboard`, `-browser`, `-browser-auth`, `-config`, `-credentials`, `-homeassistant`, `-mealie`). The ConfigMap also carries Kustomize's content hash. The instance label is `hermes-samwise`; the reusable base keeps generic names. Name-change patches record the original resource identities so Kustomize updates built-in references, including the generated ConfigMap. Traefik CRD references are explicit.
+
+Public URLs (`samwise` and `samwise-browser`) and the Authentik group `app_hermes_samwise` are unchanged. The dashboard OAuth client becomes `hermes-samwise-dashboard`; its provider and issuer remain `hermes-samwise`. Authentik and Hermes must both sync before testing sign-in; existing dashboard sessions may need a new login.
+
+Staged on 2026-11-04:
+
+- The three renamed Secrets were created from verified identical encrypted/live data. Original Secrets remain available to the running Pod; no credentials were rotated.
+- Runtime PVC `ai/hermes-samwise` remains on PV `pvc-742cbb28-09bb-471e-8baa-5379b2f1d36e`; it was not copied or rebound.
+- Browser PVC `ai/hermes-samwise-browser` is bound to new PV `pvc-10201fb6-e7c6-4e1c-8dbc-49b3226d6024`. No deployed browser PVC existed, so there was no browser state to move.
+- The production Deployment and Pod were not changed.
+
+**Owner maintenance is required when merging this rename.** The existing Deployment selector contains `app.kubernetes.io/instance: samwise`. Kubernetes rejects changing it in place, even with the `Recreate` strategy. An ordinary sync will report an immutable-selector error; do not add a permanent force-replace annotation, which would recreate the Deployment on every sync.
+
+1. Merge only during an agreed maintenance window. The renamed Services select the new instance label, so a partial sync can interrupt dashboard traffic before the gateway is replaced.
+2. Once Argo CD shows the merged revision as its desired state, delete only the Deployment with `kubectl -n ai delete deployment hermes-samwise --cascade=foreground --wait=true`. Foreground deletion keeps its name occupied until the old Pods are gone. Then sync `ai` again (or let automated reconciliation recreate it). Do not delete the PVC, use orphan/background deletion, or run old and new gateways together against its state.
+3. Wait for the new Deployment and both `ai` and `authentik` applications to become healthy. Verify selector and Pod label `hermes-samwise`, the unchanged runtime PVC binding, all three renamed Secret references and dashboard sign-in with the renamed OAuth client. Then perform the browser checks above.
+4. Retain the old Secrets until rollback is no longer needed. Delete only `ai/hermes-credentials-samwise`, `ai/hermes-homeassistant-samwise` and `ai/hermes-mealie-samwise`, after checking that no Pod references them. Rolling back this PR also requires replacing the Deployment because the selector changes back; it does not require moving the runtime PVC.
 
 ## Fresh reset: owner merges first
 
@@ -109,7 +129,7 @@ Known old storage:
 
 The owner will manually remove the contents of that old subdirectory, including its internal `backups/`, `.curator_backups/`, conversations, memories, skills, jobs, plugins, databases, logs, workspaces and credential copies. Recheck the exact path and confirm the old Pods are stopped before deletion. Deleting the PVC alone does not erase retained NFS data. The released PV can be removed after the directory has been erased; check whether ArgoCD already pruned the old PVC.
 
-Delete the old live Secrets `ai/hermes-credentials`, `ai/hermes-homeassistant`, `ai/hermes-ssh`, `ai/hermes-talos` and `monitoring/hermes-alert-webhook` after confirming no remaining consumers. The HA token itself stays valid in `hermes-homeassistant-samwise`. Remove obsolete local setup helpers and any credential copies discovered during cutover; do not print their contents.
+Delete the old live Secrets `ai/hermes-credentials`, `ai/hermes-homeassistant`, `ai/hermes-ssh`, `ai/hermes-talos` and `monitoring/hermes-alert-webhook` after confirming no remaining consumers. The HA token itself stays valid in `hermes-samwise-homeassistant`. Remove obsolete local setup helpers and any credential copies discovered during cutover; do not print their contents.
 
 Revoke the former GitHub token upstream **only if it is dedicated to this agent**. Its sharing status has not been established. Remove local SSH, Talos and Proxmox credentials but leave those upstream credentials valid, as requested.
 
@@ -142,12 +162,15 @@ The integration check verifies Telegram and HA authentication only. Rohlík tool
 
 ## Add another instance
 
-Copy `instances/samwise/` to a new instance directory. Start its replica count at zero. Change the suffix, instance label, Secret references, hostname, OAuth issuer/client and identity; add the directory to the parent Kustomization. Create a separate Authentik group, application, provider and strict callback, and new encrypted Secrets. Use a different Telegram bot unless an explicit routing design replaces polling. Start with a fresh PVC and authorize that instance independently: do not clone Samwise's state or share rotating OAuth token files.
+Copy `instances/samwise/` to a new instance directory. Start its replica count at zero. Change the resource-name patches, instance label, explicit Traefik references, Secret references, hostname, OAuth issuer/client and identity; add the directory to the parent Kustomization. Create a separate Authentik group, application, provider and strict callback, and new encrypted Secrets. Use a different Telegram bot unless an explicit routing design replaces polling. Start with a fresh PVC and authorize that instance independently: do not clone Samwise's state or share rotating OAuth token files.
 
 All instances start at zero replicas unless their overlay explicitly activates them. Never add a second instance without reviewing both rendered selectors and credential routing.
 
 ## References
 
+- [Kustomize resource-name changes](https://kubectl.docs.kubernetes.io/references/kustomize/kustomization/patches/)
+- [Kubernetes immutable Deployment selectors](https://kubernetes.io/docs/concepts/workloads/controllers/deployment/#label-selector-updates)
+- [Kubernetes foreground cascading deletion](https://kubernetes.io/docs/concepts/workloads/controllers/garbage-collection/#foreground-deletion)
 - [Hermes Camofox plugin](https://hermes-agent.nousresearch.com/docs/plugins/camofox)
 - [Pinned Camofox plugin source](https://github.com/NousResearch/hermes-official-plugins/tree/1138f25c8b7b5a8fb882b3161e248f29abbd1a46/camofox)
 - [Camofox server](https://github.com/jo-inc/camofox-browser)

@@ -27,12 +27,12 @@ class HomeAssistantTests(unittest.TestCase):
 
     def test_only_gateway_receives_full_ha_credentials(self):
         expected = [
-            {"secretRef": {"name": "hermes-homeassistant-samwise"}},
-            {"prefix": "_HERMES_FORCE_", "secretRef": {"name": "hermes-homeassistant-samwise"}},
+            {"secretRef": {"name": "hermes-samwise-homeassistant"}},
+            {"prefix": "_HERMES_FORCE_", "secretRef": {"name": "hermes-samwise-homeassistant"}},
         ]
         for container in self.pod["containers"] + self.pod["initContainers"]:
             refs = [ref for ref in container.get("envFrom", [])
-                    if ref.get("secretRef", {}).get("name") == "hermes-homeassistant-samwise"]
+                    if ref.get("secretRef", {}).get("name") == "hermes-samwise-homeassistant"]
             self.assertEqual(refs, expected if container["name"] == "gateway" else [])
             self.assertFalse(any("HASS" in env["name"] for env in container.get("env", [])))
 
