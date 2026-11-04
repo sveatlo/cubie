@@ -28,6 +28,7 @@ vars/*.yaml
 # Temporary
 tmp/
 *.tmp
+__pycache__/
 .worktrees/
 
 docs/plans/
