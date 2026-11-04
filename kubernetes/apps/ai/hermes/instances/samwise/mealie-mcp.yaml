@@ -1,0 +1,61 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hermes
+spec:
+  template:
+    spec:
+      initContainers:
+        - name: mealie-mcp
+          restartPolicy: Always
+          image: ghcr.io/djwmarcx/better-mealie-mcp:3.30.0@sha256:db892bbaed99cf08e381585b5b35833ca07c0f34d14ab0d15859a849cdd367fb
+          args: [--http, "8000"]
+          env:
+            - name: MCP_HOST
+              value: 127.0.0.1
+            - name: MEALIE_BASE_URL
+              value: http://mealie.mealie.svc.cluster.local:9000
+            - name: MEALIE_API_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: hermes-mealie-samwise
+                  key: MEALIE_API_TOKEN
+            - name: PYTHONDONTWRITEBYTECODE
+              value: "1"
+          startupProbe:
+            exec: &mealieCheck
+              command: [/app/.venv/bin/python, -c, "import socket; socket.create_connection(('127.0.0.1', 8000), timeout=2).close()"]
+            timeoutSeconds: 3
+            periodSeconds: 2
+            failureThreshold: 60
+          readinessProbe:
+            exec: *mealieCheck
+            timeoutSeconds: 3
+            periodSeconds: 10
+          livenessProbe:
+            exec: *mealieCheck
+            timeoutSeconds: 3
+            periodSeconds: 20
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 10000
+            runAsGroup: 10000
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: [ALL]
+            seccompProfile:
+              type: RuntimeDefault
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              memory: 512Mi
+          volumeMounts:
+            - name: mealie-tmp
+              mountPath: /tmp
+      volumes:
+        - name: mealie-tmp
+          emptyDir:
+            sizeLimit: 64Mi

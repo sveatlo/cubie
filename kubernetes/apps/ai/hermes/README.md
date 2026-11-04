@@ -11,7 +11,7 @@ Samwise is the first household instance. The shared `base/` supplies the pinned 
 | Access group | `app_hermes_samwise`, initially only `sveatlo` |
 | Telegram | Existing bot token, username, owner allowlist and home channel |
 | Model | OpenAI subscription OAuth with a fresh sign-in, no paid API fallback |
-| Integrations | Home Assistant administrator access and Rohlík MCP OAuth |
+| Integrations | Home Assistant administrator access, Rohlík MCP OAuth and Mealie MCP |
 
 Separate Deployments, PVCs, ConfigMaps, Secrets and Authentik access keep instances' state apart. Hermes profiles alone are not the isolation boundary: the dashboard can administer profiles within its installation. This is not hostile-tenant isolation; the cluster and NFS administrators still control the data.
 
@@ -19,7 +19,7 @@ Separate Deployments, PVCs, ConfigMaps, Secrets and Authentik access keep instan
 
 Initialization installs the official Home Assistant plugin at commit `4d492b1dc5326af3e38bb2cf3e4b9ad6d65f0072` (version `2.0.1`) with dependency consent. A failed install blocks startup. The managed `config.yaml` is refreshed each start. `SOUL.md` is a seed: copied only if absent, so later runtime edits survive restarts. A new PVC gives Samwise a fresh identity, without inheriting old memories, conversations, skills or jobs.
 
-Telegram, CLI and API toolsets contain terminal, file, Home Assistant and Rohlík tools, not browser tools. There is no browser or alert sidecar, GitHub credential helper, Kubernetes RBAC grant, projected service-account token, SSH key, Talos config, Proxmox credential or operator-tool download. The image still contains general-purpose software and network access; these changes do not make arbitrary terminal commands a sandbox.
+Telegram, CLI and API toolsets contain terminal, file, Home Assistant, Rohlík and Mealie tools, not browser tools. There is no browser or alert sidecar, GitHub credential helper, Kubernetes RBAC grant, projected service-account token, SSH key, Talos config, Proxmox credential or operator-tool download. The image still contains general-purpose software and network access; these changes do not make arbitrary terminal commands a sandbox.
 
 The official HA plugin provides discovery and device-control tools. Its autonomous event platform stays disabled. The gateway also receives `HASS_URL` and `HASS_TOKEN` through the terminal credential override so it retains full REST/WebSocket administration, including operations the plugin restricts. The retained token belongs to the local-only HA administrator `Hermes` (`hermes`); its recorded expiry is 2027-11-02. Do not revoke it during this reset.
 
@@ -39,6 +39,26 @@ hack/apply-secret.sh kubernetes/apps/ai/config/hermes-homeassistant-samwise.yaml
 The first Secret contains only the existing four Telegram settings. The second contains only the existing `HASS_URL` and `HASS_TOKEN`. No operator, GitHub or webhook credentials are copied. Do not restore the old `.env`.
 
 OpenAI and Rohlík require fresh sign-ins. No OAuth files or other state are copied from the old PVC. Stop the old gateway before starting Samwise so two instances do not poll the same Telegram bot.
+
+## Mealie
+
+Samwise uses `djwmarcx/better-mealie-mcp:3.30.0`, pinned by image digest to match Mealie v3.30.0. Renovate's Kubernetes manager tracks this image and its digest. A package-specific versioning rule also treats upstream `-r2`, `-r3`, etc. revisions as stable build updates rather than separate compatibility channels. All 283 tools are exposed, including administrative endpoints. Actual permissions come from the API token's account; this instance deliberately uses a separately named token from the owner's existing account. Revoking that token does not require changing the owner's password.
+
+The MCP runs as a Kubernetes native sidecar in Samwise's Pod. Its startup probe must pass before the gateway starts. It listens on `127.0.0.1:8000/mcp`, with no Service or ingress, and calls `http://mealie.mealie.svc.cluster.local:9000`. It receives no Hermes PVC or configuration mount. Only this sidecar receives `MEALIE_API_TOKEN`, from the dedicated `ai/hermes-mealie-samwise` Secret; the gateway accesses Mealie through MCP rather than receiving its token directly. The sidecar has a read-only root filesystem and a small temporary volume.
+
+Mealie tools are available to Telegram, CLI and dashboard/API sessions. Hermes's default tool-search behavior defers MCP schemas until needed. The full tool inventory remains available; long names are shortened by Hermes to fit provider limits. Listing tools alone does not prove the API token works.
+
+Before merging the integration or rotating its token:
+
+1. Create a separately named token under Mealie's Profile → Manage API Tokens (`/user/profile/api-tokens`). The account must have the permissions Samwise needs; this token has no independent API scopes.
+2. Store it in the SOPS-encrypted `kubernetes/apps/ai/config/hermes-mealie-samwise.yaml.sops`, Secret `ai/hermes-mealie-samwise`, key `MEALIE_API_TOKEN`. Use `hack/edit-secret.sh`; never commit plaintext or add it to the Telegram/Home Assistant Secrets.
+3. Apply it before the owner merges the integration:
+
+   ```bash
+   hack/apply-secret.sh kubernetes/apps/ai/config/hermes-mealie-samwise.yaml.sops
+   ```
+
+The initial dedicated Secret was applied on 2026-11-04, and a read-only `/api/users/self` request verified its authentication and administrative/food-organization permissions. The integration still requires an owner merge and post-sync MCP discovery/read verification. A missing Secret or failed sidecar startup blocks Samwise's rollout; do not merge before provisioning it. A separate instance needs its own token and Secret reference.
 
 ## Fresh reset: owner merges first
 
@@ -103,6 +123,11 @@ Copy `instances/samwise/` to a new instance directory. Start its replica count a
 All instances start at zero replicas unless their overlay explicitly activates them. Never add a second instance without reviewing both rendered selectors and credential routing.
 
 ## References
+
+- [Better Mealie MCP v3.30.0 setup](https://github.com/djwmarcx/better-mealie-mcp/tree/v3.30.0)
+- [Better Mealie MCP v3.30.0 server configuration](https://github.com/djwmarcx/better-mealie-mcp/blob/v3.30.0/better_mealie_mcp/server.py)
+- [Mealie API tokens](https://docs.mealie.io/documentation/getting-started/api-usage/)
+- [Kubernetes native sidecar startup and lifecycle](https://kubernetes.io/docs/concepts/workloads/pods/sidecar-containers/)
 
 - [Hermes v0.22.6 profiles and isolation limits](https://github.com/NousResearch/hermes-agent/blob/v0.22.6/website/docs/user-guide/profiles.md)
 - [Hermes v0.22.6 dashboard](https://github.com/NousResearch/hermes-agent/blob/v0.22.6/website/docs/user-guide/features/web-dashboard.md)
