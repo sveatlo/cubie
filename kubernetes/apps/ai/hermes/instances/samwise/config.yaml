@@ -25,28 +25,22 @@ mcp_servers:
     url: https://mcp.rohlik.cz/mcp
     auth: oauth
 platform_toolsets:
-  telegram:
+  telegram: &household_tools
     - terminal
     - file
-    - browser
     - homeassistant
     - mcp-rohlik-mcp
-browser:
-  cloud_provider: local
-  backend: "off"
-  engine: chrome
-  cdp_url: http://127.0.0.1:9222
-  allow_private_urls: true
-  inactivity_timeout: 120
+  cli: *household_tools
+  api_server: *household_tools
 telegram:
   require_mention: true
 dashboard:
-  public_url: https://laki.${DOMAIN_0}
+  public_url: https://samwise.${DOMAIN_0}
   trusted_proxies:
     - 10.244.0.0/16
   oauth:
     provider: self-hosted
     self_hosted:
-      issuer: https://auth.${DOMAIN_0}/application/o/hermes/
-      client_id: hermes-dashboard
+      issuer: https://auth.${DOMAIN_0}/application/o/hermes-samwise/
+      client_id: hermes-dashboard-samwise
       scopes: openid profile email offline_access

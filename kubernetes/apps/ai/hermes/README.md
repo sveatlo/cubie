@@ -1,192 +1,122 @@
-# Hermes on cubie
+# Hermes household instances
 
-Hermes runs in namespace `ai` alongside Ollama and Open WebUI. The pinned image includes the SSH client and Chromium. The init container installs checksum-verified `kubectl` and cluster-version-matched `talosctl` on the dedicated PVC.
+Samwise is the first household instance. The shared `base/` supplies the pinned Hermes runtime, dashboard Service, a dedicated PVC and initialization. Each directory under `instances/` supplies identity, configuration, hostname, resource suffix, selectors and Secret references.
 
-## Finish setup
+| Setting | Samwise |
+| --- | --- |
+| Deployment / PVC | `ai/hermes-samwise` |
+| Dashboard | `https://samwise.${DOMAIN_0}` |
+| Authentik application | `Samwise (Hermes)`, slug `hermes-samwise` |
+| Dashboard OAuth client | `hermes-dashboard-samwise`, public client with PKCE |
+| Access group | `app_hermes_samwise`, initially only `sveatlo` |
+| Telegram | Existing bot token, username, owner allowlist and home channel |
+| Model | Existing OpenAI subscription OAuth, no paid API fallback |
+| Integrations | Home Assistant administrator access and Rohlík MCP OAuth |
 
-Run the local credential wizard from the repository root:
+Separate Deployments, PVCs, ConfigMaps, Secrets and Authentik access keep instances' state apart. Hermes profiles alone are not the isolation boundary: the dashboard can administer profiles within its installation. This is not hostile-tenant isolation; the cluster and NFS administrators still control the data.
 
-```bash
-bash tmp/hermes-setup.sh
-```
+## Runtime and identity
 
-The wizard is an ignored, one-off local file, not part of the repository. It needs Python with PyYAML, `kubectl`, `sops`, the age key, and the existing `talos/configs/talosconfig`. It requires Kubernetes context `admin@cubie`.
+Initialization installs the official Home Assistant plugin at commit `4d492b1dc5326af3e38bb2cf3e4b9ad6d65f0072` (version `2.0.1`) with dependency consent. A failed install blocks startup. The managed `config.yaml` is refreshed each start. `SOUL.md` is a seed: copied only if absent, so later runtime edits survive restarts. A new PVC gives Samwise a fresh identity, without inheriting old memories, conversations, skills or jobs.
 
-It walks through:
+Telegram, CLI and API toolsets contain terminal, file, Home Assistant and Rohlík tools, not browser tools. There is no browser or alert sidecar, GitHub credential helper, Kubernetes RBAC grant, projected service-account token, SSH key, Talos config, Proxmox credential or operator-tool download. The image still contains general-purpose software and network access; these changes do not make arbitrary terminal commands a sandbox.
 
-1. Telegram bot creation, disabled group invitations, and verified owner-only private chat.
-2. GitHub repository token, Proxmox token, and trusted Proxmox CA when needed.
-3. SOPS encryption, manual Secret application, and a temporary login pod. The gateway stays stopped.
-4. OpenAI subscription device-code login and read-only integration checks. One small model request tests `gpt-6.1-sol`. Authentication, model eligibility, or quota failure stops setup without a paid fallback.
-5. Gateway activation and a private Telegram greeting.
+The official HA plugin provides discovery and device-control tools. Its autonomous event platform stays disabled. The gateway also receives `HASS_URL` and `HASS_TOKEN` through the terminal credential override so it retains full REST/WebSocket administration, including operations the plugin restricts. The retained token belongs to the local-only HA administrator `Hermes` (`hermes`); its recorded expiry is 2027-11-02. Do not revoke it during this migration.
 
-Secrets are not listed in Kustomize. The wizard provisions:
+Samwise may perform requested routine lights, media and ordinary comfort adjustments. Its identity requires specific confirmation for locks, alarms, doors/gates, camera/privacy changes, hazardous appliances and HA configuration/automation edits. These are behavioral rules, not reduced token permissions.
 
-| Encrypted file | Secret | Namespace |
-|---|---|---|
-| `../config/hermes-credentials.yaml.sops` | `hermes-credentials` | `ai` |
-| `../config/hermes-talos.yaml.sops` | `hermes-talos` | `ai` |
-| `../config/hermes-ssh.yaml.sops` | `hermes-ssh` | `ai` |
-| `../config/hermes-homeassistant.yaml.sops` | `hermes-homeassistant` | `ai` |
-| `../../../infrastructure/kube-prometheus-stack/config/hermes-alert-webhook.yaml.sops` | `hermes-alert-webhook` | `monitoring` |
+The dashboard keeps native Authentik SSO as its sole login gate; its ingress is not LAN-filtered. The blueprint creates the instance group and owner membership, provisions the exact HTTPS callback, and removes the old `hermes` application/provider. Future family access requires an intentional update to the group membership in the blueprint and, separately, the Telegram allowlist.
 
-The Talos Secret can also contain `proxmox-ca.crt`. TLS verification is enabled by default. The owner has explicitly selected `PROXMOX_VERIFY_TLS=false` for the configured Proxmox API: its HTTPS traffic is encrypted, but the server certificate and hostname are not verified. A network attacker could impersonate Proxmox and obtain the API token. Other integrations keep TLS verification enabled. Restore `PROXMOX_VERIFY_TLS=true` and provide a trusted CA to remove this exception.
+## Secrets
 
-The Home Assistant Secret is provisioned separately from the original wizard. To restore the existing credentials on a rebuilt cluster, apply all five encrypted Secrets from the repository root before reconciling the applications:
+Encrypted files are not Kustomize resources. Apply them manually at cutover:
 
 ```bash
-for secret in \
-  kubernetes/apps/ai/config/hermes-credentials.yaml.sops \
-  kubernetes/apps/ai/config/hermes-talos.yaml.sops \
-  kubernetes/apps/ai/config/hermes-ssh.yaml.sops \
-  kubernetes/apps/ai/config/hermes-homeassistant.yaml.sops \
-  kubernetes/infrastructure/kube-prometheus-stack/config/hermes-alert-webhook.yaml.sops; do
-  hack/apply-secret.sh "$secret"
-done
+hack/apply-secret.sh kubernetes/apps/ai/config/hermes-credentials-samwise.yaml.sops
+hack/apply-secret.sh kubernetes/apps/ai/config/hermes-homeassistant-samwise.yaml.sops
 ```
 
-Restore the sensitive PVC backup separately. If its OAuth state is lost, the owner must repeat `hermes auth add openai-codex` inside a UID `10000` container, then rerun the integration/model gates before accepting alerts.
+The first Secret contains only the existing four Telegram settings. The second contains only the existing `HASS_URL` and `HASS_TOKEN`. No operator, GitHub or webhook credentials are copied. Do not restore the old `.env`.
 
-Only one Telegram gateway may poll this bot. Stop any old poller before rerunning Telegram verification. Do not leave a login pod running alongside the final Deployment.
+OAuth remains on the PVC. OpenAI refresh tokens can rotate on use: never run the old and new instances concurrently, and never reactivate an old token copy after the new instance has refreshed it.
 
-Repository changes must land in the GitOps source for durable reconciliation. ArgoCD currently watches GitHub `HEAD`. Merge them yourself; the agent must not merge or push to `main` or `master`. Let ArgoCD reconcile the affected applications after merging. Applying monitoring changes manually can be undone by ArgoCD.
+## Staged migration: owner merges first
 
-## Authentik-protected dashboard
+**The preparation PR starts a maintenance window when merged.** ArgoCD will prune the old Deployment, browser, alert receiver, RBAC and ingress. Samwise remains at `replicas: 0`. The old PVC remains explicitly managed in `migration.yaml` with pruning disabled. Nothing wipes it on sync.
 
-Open `https://laki.${DOMAIN_0}` and sign in through Authentik as `sveatlo`. Traefik terminates HTTPS with the existing wildcard certificate. This Ingress intentionally has no LAN-only middleware: the dashboard is reachable wherever Traefik is reachable, with native Authentik OIDC as its sole login gate. The dashboard Service is ClusterIP-only on port `9119`; no public LoadBalancer or NodePort is added.
+1. Before merging, agree on the maintenance window and identify external backups. Do not promise complete erasure without inspecting the NAS and any offsite copies.
+2. The owner merges the preparation PR. Wait for the `ai`, `authentik` and `kube-prometheus-stack` Argo applications to sync. Verify the old Deployment and all its Pods are gone, Samwise has zero replicas, both PVCs are bound, the HA token is retained, and Alertmanager still has its default email receiver.
+3. Apply the two new encrypted Secrets above. Check the Authentik blueprint succeeded, `app_hermes_samwise` contains only the owner, and the old application/provider no longer exist.
+4. Apply the temporary transfer Pod, then stream the migration script without putting credentials into local files or command arguments:
 
-The official image's s6 supervisor runs the dashboard alongside the Telegram gateway as UID `10000`. Startup/readiness/liveness probes check its public `/api/status` endpoint. The dashboard shares the operator's PVC, credentials and permissions, so an authenticated dashboard session is an operator session, not a read-only monitoring view.
+   ```bash
+   kubectl apply -f kubernetes/apps/ai/hermes/transfer-pod.yaml
+   kubectl -n ai wait --for=condition=Ready pod/hermes-samwise-transfer --timeout=120s
+   kubectl -n ai exec -i hermes-samwise-transfer -- /opt/hermes/.venv/bin/python - \
+     < kubernetes/apps/ai/hermes/migrate_auth.py
+   kubectl -n ai delete pod hermes-samwise-transfer --wait=true
+   ```
 
-Authentik provisions a public OIDC client named `hermes-dashboard` through its Git-managed blueprint. Login uses authorization-code PKCE, an asymmetric signing key and the exact callback `https://laki.${DOMAIN_0}/auth/callback`. The application's user binding admits only `sveatlo`; other SSO accounts are not granted access. No client secret or separate dashboard password is needed. Update the blueprint if the owner account is renamed.
+   The source is mounted read-only. The destination must be empty. The script validates all inputs before copying exactly `auth.json` and the three `mcp-tokens/rohlik-mcp{,.client,.meta}.json` files, with private permissions. Other model providers, symlinks and nonempty destinations are refused. It copies no lock files, old configuration or agent state. A copy failure can leave partial files: inspect locally and clear only the new, still-unused destination before retrying.
+5. Prepare a small activation PR adding a Samwise overlay patch for `spec.replicas: 1`. The owner merges it. Do not use `kubectl scale` against Argo-managed replicas. Wait for initialization and dashboard readiness.
+6. Run the runtime, integration and model checks below. Verify Rohlík connects and discovers tools without modifying a cart. Test dashboard login as the owner and denial for a nonmember. Send a new private Telegram conversation and check the Samwise personality. Confirm the fresh installation has no inherited memories, chats, jobs, skills, workspace or alert reports. The smoke/model checks themselves create new state; that is not inherited history.
+7. Use Telegram Bot API `setMyName`, `setMyDescription` and `setMyShortDescription` to set Samwise's household identity. Keep the bot username, token and owner allowlist unchanged. Do not delete messages from Telegram.
+8. Only after verification, perform the destructive cleanup below. There is no new archive and no history-preserving rollback. After Samwise uses a rotating refresh token, recovery must use its current state or reauthentication, never the stale source copy.
 
-`dashboard.public_url` fixes the callback URL and allowed browser origin. The dashboard trusts forwarded proxy metadata from the Flannel pod CIDR `10.244.0.0/16` so Traefik's changing pod IP can convey the HTTPS scheme and produce Secure cookies. That trusts other cluster pods' forwarding metadata too, not just Traefik. Both Ingress access and in-cluster direct access rely on the native login gate; there is no source-network restriction on this Ingress. Do not expose the dashboard Service outside the cluster or widen proxy trust to `*` or `/0`.
+### Deletion targets and remaining checks
 
-Dashboard edits to `SOUL.md` persist on the PVC. Dashboard edits to `config.yaml` remain subject to the Git-managed startup refresh. After reconciliation, verify the owner login, denial of another SSO user, unauthenticated API rejection (including from a non-LAN client where reachable), token refresh, Secure cookies, and WebSocket access. Non-LAN clients are not rejected solely for their source address. Neither an authenticated browser session nor a successful owner login is implied by a passing `/api/status` probe.
+Known old storage:
 
-## Editable identity
+- PVC `ai/hermes`.
+- PV `pvc-de8b4656-eb6f-4b5d-a286-50798533eff7`, reclaim policy `Retain`.
+- NFS `10.69.10.3:/mnt/rapida/cubie`, subdirectory `ai/hermes/pvc-de8b4656-eb6f-4b5d-a286-50798533eff7`.
 
-Hermes loads `/opt/data/SOUL.md` from the writable PVC mounted at `/opt/data`. The repository's `SOUL.md` is only a first-boot seed: initialization copies it when the runtime file is missing and leaves an existing file untouched, including an empty file. Agent edits therefore survive container restarts and deployments. `config.yaml` remains Git-managed and is refreshed on startup.
+Recheck that exact binding before deletion. Remove the contents of that old subdirectory, including its internal `backups/`, `.curator_backups/`, all conversations, memories, skills, jobs, plugins, databases, logs, workspaces and credential copies. Deleting the PVC alone does not erase retained NFS data. A read-only transfer Pod cannot perform this wipe: use a separately reviewed, narrowly mounted cleanup Pod or the NAS administrator interface, then verify the old directory is empty.
 
-Keep the directory mount rather than a single-file `subPath` mount so editors can replace the file atomically. Changes to the Git seed do not update an existing runtime identity. To reset it intentionally, back up the runtime file, remove it, and restart Hermes. Deleting the PVC without restoring its backup also loses the edited identity.
+After the wipe, remove `migration.yaml` from Kustomize in a cleanup PR; the owner merges. Its `Prune=false` annotation means the old PVC must then be deleted explicitly, followed by the released PV after the directory has been removed. Remove the temporary transfer Pod if it still exists.
 
-SOUL changes take effect in new Hermes sessions; an existing session keeps its frozen prompt.
+Delete the old live Secrets `ai/hermes-credentials`, `ai/hermes-homeassistant`, `ai/hermes-ssh`, `ai/hermes-talos` and `monitoring/hermes-alert-webhook` after confirming no remaining consumers. The HA token itself stays valid in `hermes-homeassistant-samwise`. Remove obsolete local setup helpers and any credential copies discovered during cutover; do not print their contents.
 
-## GitHub authentication
+Revoke the former GitHub token upstream **only if it is dedicated to this agent**. Its sharing status has not been established. Remove local SSH, Talos and Proxmox credentials but leave those upstream credentials valid, as requested.
 
-`GITHUB_TOKEN` comes from `hermes-credentials`. Hermes v0.21.6 strips it from terminal commands by default. Operator containers also receive `_HERMES_FORCE_GITHUB_TOKEN` from the same Secret so the local-terminal builder restores `GITHUB_TOKEN` for Git and GitHub API commands. Terminal commands and skills deliberately receive that credential. `GIT_CONFIG_GLOBAL=/opt/data/.gitconfig` keeps the initialized credential helper available when Hermes redirects the terminal's `HOME` to `/opt/data/home`. Other managed-secret filters and the credential-free browser remain unchanged. Recheck this release-specific override when upgrading Hermes; `terminal.env_passthrough` cannot authorize the key.
+No Kubernetes VolumeSnapshots or Hermes backup CronJobs were found during inventory. The mounted `/mnt/nas/home/backup` appears to be a Borg repository; a bounded read-only archive-list attempt did not complete. NAS snapshots, offsite replication and selectively deletable historical archives remain **unverified**. Obtain access and identify the exact copies before deleting them. Never delete another application's archive or a shared snapshot to erase Hermes. If a shared immutable snapshot cannot be selectively cleaned, report its retention/access restrictions and obtain a decision; do not call the reset fully erased.
 
-Run `smoke_test.py github` inside an operator container to check the filtered terminal environment, Git credential helper, and read-only GitHub API access without printing credentials. The `integrations` gate includes this check rather than testing only the parent process's environment.
-
-## Home Assistant
-
-The official `homeassistant` plugin provides `ha_list_entities`, `ha_get_state`, `ha_list_services`, and `ha_call_service` in Telegram. It is pinned to `NousResearch/hermes-official-plugins` commit `4d492b1dc5326af3e38bb2cf3e4b9ad6d65f0072` (plugin version `2.0.1`) on the persistent PVC. The plugin is not baked into the container image or installed by the init container. Its event-driven gateway is explicitly disabled: HA state changes must not start autonomous agent runs.
-
-`hermes-homeassistant` supplies `HASS_URL` and `HASS_TOKEN` only to the gateway container. HTTPS certificate verification remains enabled. The same Secret is imported with `_HERMES_FORCE_` prefixes so Hermes's local-terminal builder restores these variables for owner-approved REST/WebSocket administration. The alerts and browser containers do not receive the HA environment. This is credential routing, not isolation from the cluster-admin operator or the shared PVC.
-
-The token belongs to the dedicated, local-only HA administrator `Hermes` (username `hermes`), not the owner's account. It was issued on 2026-11-02 with a 365-day lifetime; rotate it before 2027-11-02. The generated login password was not retained; the HA owner can reset it to log in as this user and issue a replacement token. Update the encrypted Secret, run `hack/apply-secret.sh kubernetes/apps/ai/config/hermes-homeassistant.yaml.sops`, and restart the gateway to load a rotated token. To revoke access, disable/delete the Hermes user or revoke its `Hermes on cubie` long-lived token in HA.
-
-The plugin has no entity allowlist: it can query all entities and call normal services. It deliberately blocks `shell_command`, `command_line`, `python_script`, `pyscript`, `hassio`, and `rest_command`; this does not constrain the administrator token used by terminal API calls. Manual-approval settings do not automatically intercept every native HA tool call. The existing SOUL instructions still require a specific owner approval before device actions or configuration writes.
-
-The encrypted Secret must be manually applied before merging the GitOps change. After the owner merges it, ArgoCD recreates Hermes with the HA environment and toolset. Start a new Telegram session so it sees the new tools. Check access without changing devices:
-
-```bash
-kubectl -n ai exec deployment/hermes -c gateway -- \
-  /opt/hermes/.venv/bin/python /config/smoke_test.py homeassistant
-```
-
-This checks tool registration, entity/state reads, service discovery, and HTTPS API access through the filtered terminal environment. It never calls a service or changes a device. An actual device-action test requires a separately approved target and action.
-
-After PVC loss, restore the plugin as well as the Secrets and OAuth state, then restart Hermes and rerun the check:
-
-```bash
-kubectl -n ai exec deployment/hermes -c gateway -- \
-  /opt/hermes/.venv/bin/hermes plugins install homeassistant \
-  --ref 4d492b1dc5326af3e38bb2cf3e4b9ad6d65f0072 --yes-deps --no-enable
-kubectl -n ai rollout restart deployment/hermes
-```
-
-`--no-enable` avoids live activation during installation; the Git-managed `plugins.enabled` entry selects it at restart. Do not use `--no-deps`: dependency consent/admission is required even when the image already contains `aiohttp`.
-
-## Rohlík MCP
-
-`rohlik-mcp` uses `https://mcp.rohlik.cz/mcp`, copied from the local Pi MCP configuration. Hermes uses its own OAuth login; Pi's tokens are not copied or shared. The `mcp-rohlik-mcp` toolset is enabled for Telegram.
-
-After deploying the configuration, open the Hermes dashboard at `https://laki.${DOMAIN_0}`, find `rohlik-mcp` in the MCP connections, and authenticate with Rohlík. Reload MCP tools and start a new Telegram session. Verify connection and tool discovery without changing the cart or placing an order. Cart changes and purchases require specific owner approval; the manual-approval setting is not a blanket interceptor for MCP tools.
-
-OAuth state lives under `/opt/data/mcp-tokens/` on the sensitive PVC. Restore its backup after PVC loss or authorize Hermes again. Dashboard-only server configuration changes are replaced by the Git-managed configuration at startup.
-
-## SSH targets
-
-The public key is `id_ed25519.pub`. Its fingerprint is:
-
-```text
-SHA256:U8DAvaOY1vuGtAlSdHsg8w/9YTyvncDhyeXppDkS8b8
-```
-
-The private key is SOPS-encrypted in `../config/hermes-ssh.yaml.sops`. Initialization copies it to `/opt/data/.ssh/id_ed25519` with mode `0600`; the directory is `0700`.
-
-For each non-Talos target:
-
-1. Authorize the public key on a dedicated remote account with the permissions you intend Hermes to have.
-2. Obtain its SSH host-key fingerprint through a trusted console or administrator. A network scan alone does not establish trust.
-3. Compare the candidate host key against that fingerprint, then add the verified `known_hosts` entry to this directory's `known_hosts` file.
-4. Reconcile the config to restart Hermes. Connect as `ssh account@hostname`.
-
-Initialization replaces the runtime `known_hosts` file from this repository. Keep approved entries here, not only on the PVC. Unknown or changed host keys fail closed. Agent forwarding and interactive password prompts are disabled. Talos is API-only and must never receive SSH configuration.
-
-## Browser
-
-Chromium runs as UID `10001` in a separate container; operator processes use UID `10000`. The browser has an ephemeral profile, read-only root filesystem, dropped capabilities, and no operator environment, PVC, SSH key, Talos credentials, OpenAI credentials, or Kubernetes service-account token.
-
-The Chrome DevTools endpoint listens on pod loopback `127.0.0.1:9222`. It is not exposed by a Service or Ingress. Hermes connects to it through `browser.cdp_url`. Private URLs are enabled for LAN dashboards. Browser cookies disappear when the browser container restarts.
-
-Chromium uses `--no-sandbox` because its packaged launch cannot use a privileged Chromium sandbox here. Container and filesystem restrictions reduce credential exposure; they do not isolate network access from the rest of the pod. Use restricted dashboard accounts. Browser submission and mutation require owner approval under the operator instructions.
-
-## Alert investigations
-
-Alertmanager groups warning and critical alerts by `alertname` and `namespace`. Existing email delivery remains enabled. The authenticated webhook persists notifications before acknowledging them. A single worker processes investigations serially; interactive Telegram sessions can still run concurrently.
-
-Investigations are diagnostic-only. They get terminal/file tools, a 25-turn limit, and a 600-second agent budget. Reports live under `/opt/data/alerts/results`; Telegram receives a report reference and diagnosis. The owner can refer to that incident in the private chat. Any remediation requires a new, specific approval.
-
-The queue holds at most 100 groups; a full queue returns `503` so Alertmanager retries. Recent duplicate notifications are suppressed for four hours. Reports expire after seven days. Failed or interrupted model runs create `/opt/data/alerts/PAUSED`; queued incidents remain on disk.
-
-After fixing the cause, explicitly approve resuming and remove the pause marker:
-
-```bash
-kubectl -n ai exec deployment/hermes -c alerts -- rm /opt/data/alerts/PAUSED
-```
-
-Delivery retries reuse the saved report rather than rerunning the model. Each acknowledged Telegram chunk is checkpointed so a later-chunk failure resumes at the saved offset. An ambiguous network response or crash before its checkpoint can still repeat a chunk; delivery is not exactly-once.
-
-## Security and persistence
-
-The operator has `cluster-admin` and the supplied Talos, GitHub, and Proxmox permissions. Ask-before-write and sanitized diagnostics are trust-based instructions, not a complete enforcement boundary. Native manual approvals catch only recognized dangerous commands. Broad credentials mean accidental or malicious operations remain possible.
-
-The NFS PVC holds OAuth refresh tokens, the copied SSH key, the editable SOUL identity, conversations, memory, skills, workspaces, and incident reports. Git encryption does not encrypt that runtime data. Protect and back up the NAS accordingly. Never include raw credential files, Secret values, or environment dumps in model prompts, logs, or Telegram reports.
+Encrypted operator Secrets remain in Git history. This migration removes their current files, not repository history, shared backups or upstream credential validity.
 
 ## Checks
 
-The manifest regression tests require Python with PyYAML, already used by the setup wizard.
+Local checks:
 
 ```bash
 python -m unittest discover -s kubernetes/apps/ai/hermes -p 'test_*.py' -v
 kubectl kustomize kubernetes/apps/ai/hermes
+hack/render.sh kubernetes/apps/ai
+hack/render.sh kubernetes/apps/authentik
+hack/render.sh kubernetes/infrastructure/kube-prometheus-stack
 ```
 
-`smoke_test.py runtime` exercises installed tools, SSH permissions, and an actual Chromium navigation. `integrations` checks the configured services without mutations. `model` makes the single subscription-only request. Run these inside the login pod as the wizard does.
+Post-activation checks, without device or shopping writes:
+
+```bash
+for check in runtime integrations model; do
+  kubectl -n ai exec deployment/hermes-samwise -c gateway -- \
+    /opt/hermes/.venv/bin/python /config/smoke_test.py "$check"
+done
+```
+
+The integration check verifies Telegram and HA authentication only. Rohlík tool discovery, HA tool registration, SSO owner/nonmember access and Telegram behavior need separate verification; the local tests do not prove live authentication.
+
+## Add another instance
+
+Copy `instances/samwise/` to a new instance directory. Change the suffix, instance label, Secret references, hostname, OAuth issuer/client and identity; add the directory to the parent Kustomization. Create a separate Authentik group, application, provider and strict callback, and new encrypted Secrets. Use a different Telegram bot unless an explicit routing design replaces polling. Start with a fresh PVC and authorize that instance independently: do not clone Samwise's state or share rotating OAuth token files.
+
+All instances start at zero replicas unless their overlay explicitly activates them. Never add a second instance without reviewing both rendered selectors and credential routing.
 
 ## References
 
-- [Pinned Hermes image](https://github.com/NousResearch/hermes-agent/blob/v0.21.6/Dockerfile)
-- [Hermes personality and SOUL](https://github.com/NousResearch/hermes-agent/blob/v0.21.6/website/docs/user-guide/features/personality.md)
-- [Pinned Hermes dashboard guide](https://github.com/NousResearch/hermes-agent/blob/v0.21.6/website/docs/user-guide/features/web-dashboard.md)
-- [Authentik OAuth2/OIDC provider](https://docs.goauthentik.io/add-secure-apps/providers/oauth2/)
-- [Authentik blueprints](https://docs.goauthentik.io/customize/blueprints/v1/structure/)
-- [Hermes providers](https://hermes-agent.nousresearch.com/docs/integrations/providers/)
-- [Pinned Hermes local-terminal environment policy](https://github.com/NousResearch/hermes-agent/blob/v0.21.6/tools/environments/local.py#L242-L272)
-- [Hermes browser](https://hermes-agent.nousresearch.com/docs/user-guide/features/browser/)
-- [Proxmox API tokens](https://pve.proxmox.com/wiki/User_Management#_api_tokens)
-- [GitHub token permissions](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens)
+- [Hermes v0.22.6 profiles and isolation limits](https://github.com/NousResearch/hermes-agent/blob/v0.22.6/website/docs/user-guide/profiles.md)
+- [Hermes v0.22.6 dashboard](https://github.com/NousResearch/hermes-agent/blob/v0.22.6/website/docs/user-guide/features/web-dashboard.md)
+- [Hermes v0.22.6 plugin installation](https://github.com/NousResearch/hermes-agent/blob/v0.22.6/hermes_cli/plugins_cmd_install.py)
 - [Pinned official Home Assistant plugin](https://github.com/NousResearch/hermes-official-plugins/tree/4d492b1dc5326af3e38bb2cf3e4b9ad6d65f0072/homeassistant)
-- [Home Assistant authentication API](https://developers.home-assistant.io/docs/auth_api/)
-- [Home Assistant WebSocket API](https://developers.home-assistant.io/docs/api/websocket/)
+- [Authentik blueprint structure](https://docs.goauthentik.io/customize/blueprints/v1/structure/)
+- [Telegram Bot API profile methods](https://core.telegram.org/bots/api#setmyname)

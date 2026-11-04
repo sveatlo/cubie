@@ -1,0 +1,30 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+nameSuffix: -samwise
+resources:
+  - ../../base
+  - ingress.yaml
+labels:
+  - pairs:
+      app.kubernetes.io/instance: samwise
+    includeSelectors: true
+configMapGenerator:
+  - name: hermes-config
+    behavior: merge
+    files:
+      - config.yaml
+      - SOUL.md
+patches:
+  - target:
+      kind: Deployment
+      name: hermes
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/envFrom/0/secretRef/name
+        value: hermes-credentials-samwise
+      - op: replace
+        path: /spec/template/spec/containers/0/envFrom/1/secretRef/name
+        value: hermes-homeassistant-samwise
+      - op: replace
+        path: /spec/template/spec/containers/0/envFrom/2/secretRef/name
+        value: hermes-homeassistant-samwise

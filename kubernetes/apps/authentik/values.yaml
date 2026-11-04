@@ -37,7 +37,7 @@ global:
 blueprints:
   configMaps:
     - authentik-blueprint-gitea
-    - authentik-blueprint-hermes
+    - authentik-blueprint-hermes-samwise
     - authentik-blueprint-snapotter
 
 authentik:
