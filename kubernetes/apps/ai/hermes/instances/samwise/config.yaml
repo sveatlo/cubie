@@ -17,6 +17,10 @@ gateway:
 plugins:
   enabled:
     - homeassistant
+    - camofox
+browser:
+  camofox:
+    managed_persistence: true
 platforms:
   homeassistant:
     enabled: false
@@ -33,6 +37,7 @@ platform_toolsets:
     - homeassistant
     - mcp-rohlik-mcp
     - mcp-mealie
+    - camofox
   cli: *household_tools
   api_server: *household_tools
 telegram:

@@ -23,27 +23,29 @@ class InitTests(unittest.TestCase):
         self.run = Mock(side_effect=self.install_plugin)
 
     def install_plugin(self, *args, **kwargs):
-        manifest = self.home / "plugins/homeassistant/plugin.yaml"
+        name = args[0][3]
+        manifest = self.home / f"plugins/{name}/plugin.yaml"
         manifest.parent.mkdir(parents=True, exist_ok=True)
-        manifest.write_text("name: homeassistant\n")
+        manifest.write_text(f"name: {name}\n")
 
     def initialize(self):
         hermes_init.initialize(self.home, self.config, self.run)
 
-    def test_installs_only_pinned_homeassistant_once(self):
+    def test_installs_each_pinned_plugin_once(self):
         self.initialize()
         self.initialize()
-        self.run.assert_called_once()
-        args, kwargs = self.run.call_args
-        self.assertEqual(args[0], [
-            "/opt/hermes/.venv/bin/hermes", "plugins", "install", "homeassistant",
-            "--ref", hermes_init.PLUGIN_REF, "--yes-deps", "--no-enable",
-        ])
-        self.assertTrue(kwargs["check"])
-        self.assertEqual(kwargs["timeout"], 300)
-        self.assertEqual(set(p.name for p in self.home.iterdir()), {
-            "workspace", "config.yaml", "SOUL.md", ".homeassistant-plugin-ref", "plugins",
-        })
+        self.assertEqual(self.run.call_count, len(hermes_init.PLUGIN_REFS))
+        for call, (name, ref) in zip(self.run.call_args_list, hermes_init.PLUGIN_REFS.items()):
+            args, kwargs = call
+            self.assertEqual(args[0], [
+                "/opt/hermes/.venv/bin/hermes", "plugins", "install", name,
+                "--ref", ref, "--yes-deps", "--no-enable",
+            ])
+            self.assertTrue(kwargs["check"])
+            self.assertEqual(kwargs["timeout"], 300)
+            marker = self.home / f".{name}-plugin-ref"
+            self.assertEqual(marker.read_text().strip(), ref)
+            self.assertEqual(marker.stat().st_mode & 0o777, 0o600)
 
     def test_seeds_identity_before_hermes_cli_can_create_its_default(self):
         def install_with_cli_bootstrap(*args, **kwargs):
@@ -74,6 +76,27 @@ class InitTests(unittest.TestCase):
         (self.home / "SOUL.md").write_text("")
         self.initialize()
         self.assertEqual((self.home / "SOUL.md").read_text(), "")
+
+    def test_changed_pin_reinstalls_only_that_plugin(self):
+        self.initialize()
+        (self.home / ".camofox-plugin-ref").write_text("old\n")
+        self.run.reset_mock()
+        self.initialize()
+        self.run.assert_called_once()
+        self.assertEqual(self.run.call_args.args[0][3], "camofox")
+
+    def test_missing_manifest_reinstalls_plugin(self):
+        self.initialize()
+        (self.home / "plugins/camofox/plugin.yaml").unlink()
+        self.run.reset_mock()
+        self.initialize()
+        self.run.assert_called_once()
+
+    def test_success_without_manifest_blocks_startup(self):
+        self.run.side_effect = None
+        with self.assertRaisesRegex(RuntimeError, "did not publish its manifest"):
+            self.initialize()
+        self.assertFalse((self.home / "config.yaml").exists())
 
     def test_failed_plugin_install_blocks_startup_without_success_marker(self):
         self.run.side_effect = RuntimeError("install failed")
