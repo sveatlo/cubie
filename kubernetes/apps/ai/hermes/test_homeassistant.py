@@ -45,6 +45,7 @@ class HomeAssistantTests(unittest.TestCase):
             "sources": [
                 {"secret": {"name": "hermes-samwise-credentials"}},
                 {"secret": {"name": "hermes-samwise-homeassistant"}},
+                {"secret": {"name": "hermes-samwise-api"}},
             ],
         })
 

@@ -112,3 +112,5 @@ patches:
                         name: hermes-samwise-credentials
                     - secret:
                         name: hermes-samwise-homeassistant
+                    - secret:
+                        name: hermes-samwise-api
