@@ -59,6 +59,9 @@ class InstanceTests(unittest.TestCase):
                     "name": "API_SERVER_KEY",
                     "valueFrom": {"secretKeyRef": {"name": prefix + "-api", "key": "API_SERVER_KEY"}},
                 })
+                managed_env = next(v for v in deployment["spec"]["template"]["spec"]["volumes"]
+                                   if v["name"] == "managed-env")
+                self.assertIn({"secret": {"name": prefix + "-api"}}, managed_env["projected"]["sources"])
                 self.assertIn({"name": "api", "containerPort": 8642}, gateway["ports"])
                 self.assertEqual(gateway["args"], ["gateway", "run"])
                 service = next(r for r in resources if r["kind"] == "Service"
@@ -168,6 +171,9 @@ class InstanceTests(unittest.TestCase):
             gateway = deployment["spec"]["template"]["spec"]["containers"][0]
             api_key = next(e for e in gateway["env"] if e["name"] == "API_SERVER_KEY")
             self.assertEqual(api_key["valueFrom"]["secretKeyRef"]["name"], "hermes-" + instance + "-api")
+            managed_env = next(v for v in volumes if v["name"] == "managed-env")
+            self.assertIn({"secret": {"name": "hermes-" + instance + "-api"}},
+                          managed_env["projected"]["sources"])
             api_route = next(r for r in resources if r["kind"] == "Ingress"
                              and r["metadata"]["name"] == "hermes-" + instance + "-api")
             self.assertEqual(api_route["spec"]["rules"][0]["host"], instance + "-api.${DOMAIN_0}")

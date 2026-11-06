@@ -272,6 +272,8 @@ spec:
                   name: hermes-credentials
               - secret:
                   name: hermes-homeassistant
+              - secret:
+                  name: hermes-api
         - name: browser-binary
           emptyDir:
             sizeLimit: 2Gi
