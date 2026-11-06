@@ -63,7 +63,7 @@ kubectl -n ai exec deployment/hermes-samwise -c gateway -- \
 
 This checks authenticated capabilities and unauthenticated rejection without inference. Verify trusted HTTPS and authenticated reachability from HA separately. A read-only `/v1/runs` marker request on the existing loopback API completed successfully in 3.60 seconds; this does not prove the new ingress works.
 
-The HA adapter lives in `home-automation/hass/hermes-assist` in the surrounding Mirkwood workspace; its `SAMWISE.md` documents installation, test-pipeline rollout and recovery. Keep the old Assist pipeline until text, phone and physical-room checks pass. No HA integration or pipeline was changed during API preparation.
+Use the unmodified [WolframRavenwolf Hermes Conversation integration](https://github.com/WolframRavenwolf/hermes-ha-integration), checked out at `home-automation/hass/hermes-assist` in the surrounding Mirkwood workspace. The owner dropped the custom adapter fork on 2026-11-06. Follow upstream installation and configuration; custom durable Runs, deferred delivery and native approval-control additions are not part of this setup. Keep the old Assist pipeline until text, phone and physical-room checks pass. No HA integration or pipeline was changed during API preparation.
 
 ## Mealie
 
