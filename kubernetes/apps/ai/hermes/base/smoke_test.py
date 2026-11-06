@@ -3,6 +3,7 @@ import os
 from pathlib import Path
 import subprocess
 import sys
+from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 
 
@@ -34,6 +35,38 @@ def integrations():
     print("Verify Rohlík tool discovery and Authentik login in the dashboard; no cart or device writes were attempted.")
 
 
+def api():
+    url = "http://127.0.0.1:8642/v1/capabilities"
+    key = os.environ["API_SERVER_KEY"]
+    if not key.strip():
+        raise RuntimeError("API check requires an injected API key.")
+    try:
+        capabilities = request_json(url, {"Authorization": "Bearer " + key})
+        assert capabilities["auth"]["type"] == "bearer"
+        assert capabilities["auth"]["required"] is True
+        features = capabilities["features"]
+        assert all(features[name] is True for name in (
+            "run_submission", "run_status", "run_stop", "run_approval_response",
+            "run_unknown_resolution", "session_resources",
+        ))
+        idempotency = features["runs_idempotency"]
+        assert idempotency["supported"] is True
+        assert idempotency["durable"] is True
+        assert idempotency["retention_seconds"] >= 86400
+        try:
+            request_json(url)
+        except HTTPError as error:
+            try:
+                assert error.code == 401
+            finally:
+                error.close()
+        else:
+            raise RuntimeError("API allowed unauthenticated access.")
+    except Exception:
+        raise RuntimeError("API authentication or capabilities check failed.") from None
+    print("API bearer authentication and required capabilities checks passed; no inference attempted.")
+
+
 def model():
     response = subprocess.run(
         ["hermes", "chat", "--query-file", "-", "--oneshot", "--format", "stream-json",
@@ -56,6 +89,6 @@ def model():
 
 if __name__ == "__main__":
     try:
-        {"runtime": runtime, "integrations": integrations, "model": model}[sys.argv[1]]()
+        {"runtime": runtime, "integrations": integrations, "api": api, "model": model}[sys.argv[1]]()
     except Exception:
         raise SystemExit("Smoke check failed; inspect locally without publishing credentials or raw responses.") from None

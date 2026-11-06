@@ -1,0 +1,23 @@
+apiVersion: v1
+kind: Secret
+metadata:
+    name: hermes-samwise-api
+    namespace: ai
+type: Opaque
+stringData:
+    API_SERVER_KEY: ENC[AES256_GCM,data:U8wThQTuo6zALYztnRJ63GXcU3LX7N/cZfkviS3jF9YYadqVhj13q0OULjCtv2PrbWXsBU01mPDr9srZWtubPw==,iv:xTnPJ6ahDcGtTFJInqoLOgf0Wxt1rix6U3kQ2wHCdaI=,tag:2YZN+OUJXK3m0AiPEOEPnw==,type:str]
+sops:
+    age:
+        - enc: |
+            -----BEGIN AGE ENCRYPTED FILE-----
+            YWdlLWVuY3J5cHRpb24ub3JnL3YxCi0+IFgyNTUxOSBvUlkyUEdmbElIMldvM3pj
+            YjBsSWhoNk1RR2MyMG5ZcVpMWkVyekJvZHljCk1kNlBTZ1ZKQVJWbnBKZ1F3MTBD
+            Z3lDeE9yVVVqN3hGOG5rRFRJc1hFM1kKLS0tIFFmeFVhNTRXeEVuSk54RU5zUWJi
+            bG9wNG9Tbm1kU0hVWlFkcUovT2l5NEEKqpCUmbKHOFF9hYpxBv+R2f7RBs76dpkS
+            CGAkZbUiWPj6rr+hXmS7HJodRG9eI8NxvALfbZel9r2PFbwaZ1XINQ==
+            -----END AGE ENCRYPTED FILE-----
+          recipient: age1szym4g0t8z0fsmatszkltft9r2puyelusydtw9kpz2sjnusqrcnqyjzdzn
+    encrypted_regex: ^(data|stringData)$
+    lastmodified: "2026-11-06T16:22:56Z"
+    mac: ENC[AES256_GCM,data:Sj2VE1sardHxrKmZbtI0iEv7rWz4MmZTpfKsjiJTLT26z6wM9oi8KSd44Be2HH3dZKFNmBAid1VlByEOsH2H8YcSpqF7SAAR09t5lD8yQ527qFfexXCpa7IC8TZC/aSLAh0MF/TTQ9CqWwxLCUbg21yIaXM4qboHC5HPVOrBqhI=,iv:vOo3Hq3Hx0AQHN1jM+K1mqk4OkjR/+s5Oto+9FTxS1I=,tag:xKjKEnTfupJrgWc8Ioy1fA==,type:str]
+    version: 3.13.3

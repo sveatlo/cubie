@@ -4,6 +4,7 @@ resources:
   - ../../base
   - ingress.yaml
   - browser-ingress.yaml
+  - api-ingress.yaml
 labels:
   - pairs:
       app.kubernetes.io/instance: hermes-samwise
@@ -43,6 +44,14 @@ patches:
         path: /metadata/name
         value: hermes-samwise-dashboard
   - target:
+      name: hermes-api
+    options:
+      allowNameChange: true
+    patch: |-
+      - op: replace
+        path: /metadata/name
+        value: hermes-samwise-api
+  - target:
       kind: ConfigMap
       name: hermes-config
     options:
@@ -51,6 +60,25 @@ patches:
       - op: replace
         path: /metadata/name
         value: hermes-samwise-config
+  - target:
+      kind: Deployment
+      name: hermes
+    patch: |-
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: hermes
+      spec:
+        template:
+          spec:
+            containers:
+              - name: gateway
+                env:
+                  - name: API_SERVER_KEY
+                    valueFrom:
+                      secretKeyRef:
+                        name: hermes-samwise-api
+                        key: API_SERVER_KEY
   - path: mealie-mcp.yaml
   - target:
       kind: Deployment
