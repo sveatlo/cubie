@@ -46,6 +46,46 @@ class InstanceTests(unittest.TestCase):
         for name in ("startupProbe", "readinessProbe", "livenessProbe"):
             self.assertGreater(gateway[name]["timeoutSeconds"], 2)
 
+    def test_api_has_a_dedicated_service_port_and_injected_secret(self):
+        for resources, prefix in ((render(ROOT / "base"), "hermes"), (self.resources, "hermes-samwise")):
+            with self.subTest(prefix=prefix):
+                deployment = next(r for r in resources if r["kind"] == "Deployment")
+                gateway = deployment["spec"]["template"]["spec"]["containers"][0]
+                env = {e["name"]: e for e in gateway["env"]}
+                self.assertEqual(env["API_SERVER_ENABLED"]["value"], "true")
+                self.assertEqual(env["API_SERVER_HOST"]["value"], "0.0.0.0")
+                self.assertEqual(env["API_SERVER_PORT"]["value"], "8642")
+                self.assertEqual(env["API_SERVER_KEY"], {
+                    "name": "API_SERVER_KEY",
+                    "valueFrom": {"secretKeyRef": {"name": prefix + "-api", "key": "API_SERVER_KEY"}},
+                })
+                self.assertIn({"name": "api", "containerPort": 8642}, gateway["ports"])
+                self.assertEqual(gateway["args"], ["gateway", "run"])
+                service = next(r for r in resources if r["kind"] == "Service"
+                               and r["metadata"]["name"] == prefix + "-api")
+                self.assertEqual(service["spec"].get("type", "ClusterIP"), "ClusterIP")
+                self.assertEqual(service["spec"]["ports"], [{"name": "api", "port": 8642, "targetPort": "api"}])
+                self.assertEqual(service["spec"]["selector"], deployment["spec"]["selector"]["matchLabels"])
+                dashboard = next(r for r in resources if r["kind"] == "Service"
+                                 and r["metadata"]["name"] == prefix + "-dashboard")
+                self.assertEqual([p["port"] for p in dashboard["spec"]["ports"]], [9119])
+
+    def test_api_ingress_uses_https_and_lan_filter_without_interactive_auth(self):
+        ingress = next(r for r in self.resources if r["kind"] == "Ingress"
+                       and r["metadata"]["name"] == "hermes-samwise-api")
+        self.assertEqual(ingress["metadata"]["annotations"], {
+            "traefik.ingress.kubernetes.io/router.entrypoints": "websecure",
+            "traefik.ingress.kubernetes.io/router.tls": "true",
+            "traefik.ingress.kubernetes.io/router.middlewares": "traefik-lan-only@kubernetescrd",
+        })
+        self.assertEqual(ingress["spec"]["ingressClassName"], "traefik")
+        self.assertEqual(ingress["spec"]["rules"], [{
+            "host": "samwise-api.${DOMAIN_0}",
+            "http": {"paths": [{"path": "/", "pathType": "Prefix", "backend": {
+                "service": {"name": "hermes-samwise-api", "port": {"name": "api"}},
+            }}]},
+        }])
+
     def test_mealie_starts_before_gateway_and_is_private_to_the_instance(self):
         deployment = next(r for r in self.resources if r["kind"] == "Deployment")
         pod = deployment["spec"]["template"]["spec"]
@@ -108,7 +148,7 @@ class InstanceTests(unittest.TestCase):
             shutil.copytree(ROOT, copy)
             second = copy / "instances/test-other"
             shutil.copytree(copy / "instances/samwise", second)
-            for name in ("kustomization.yaml", "config.yaml", "ingress.yaml", "browser-ingress.yaml", "mealie-mcp.yaml"):
+            for name in ("kustomization.yaml", "config.yaml", "ingress.yaml", "browser-ingress.yaml", "api-ingress.yaml", "mealie-mcp.yaml"):
                 path = second / name
                 path.write_text(path.read_text().replace("samwise", "test-other"))
             other = render(second)
@@ -125,6 +165,14 @@ class InstanceTests(unittest.TestCase):
             volumes = deployment["spec"]["template"]["spec"]["volumes"]
             self.assertEqual(next(v for v in volumes if v["name"] == "data")["persistentVolumeClaim"]["claimName"], "hermes-" + instance)
             self.assertEqual(next(v for v in volumes if v["name"] == "browser-data")["persistentVolumeClaim"]["claimName"], "hermes-" + instance + "-browser")
+            gateway = deployment["spec"]["template"]["spec"]["containers"][0]
+            api_key = next(e for e in gateway["env"] if e["name"] == "API_SERVER_KEY")
+            self.assertEqual(api_key["valueFrom"]["secretKeyRef"]["name"], "hermes-" + instance + "-api")
+            api_route = next(r for r in resources if r["kind"] == "Ingress"
+                             and r["metadata"]["name"] == "hermes-" + instance + "-api")
+            self.assertEqual(api_route["spec"]["rules"][0]["host"], instance + "-api.${DOMAIN_0}")
+            self.assertEqual(api_route["spec"]["rules"][0]["http"]["paths"][0]["backend"]["service"]["name"],
+                             "hermes-" + instance + "-api")
             browser_route = next(r for r in resources if r["kind"] == "IngressRoute")
             self.assertEqual(browser_route["spec"]["routes"][1]["services"][0]["name"], "hermes-" + instance + "-browser")
             self.assertEqual(browser_route["spec"]["routes"][1]["middlewares"][1]["name"], "hermes-" + instance + "-browser-auth")

@@ -43,7 +43,7 @@ class BrowserTests(unittest.TestCase):
         self.assertNotIn("browser-data", {v["name"] for v in gateway["volumeMounts"]})
         self.assertIn({"name": "CAMOFOX_URL", "value": "http://127.0.0.1:9377"}, gateway["env"])
         services = [r for r in self.resources if r["kind"] == "Service"]
-        self.assertEqual({p["port"] for s in services for p in s["spec"]["ports"]}, {9119, 6080})
+        self.assertEqual({p["port"] for s in services for p in s["spec"]["ports"]}, {9119, 6080, 8642})
         self.assertTrue(all(s["spec"].get("type", "ClusterIP") == "ClusterIP" for s in services))
 
     def test_persistent_browser_tools_enabled_for_all_channels(self):

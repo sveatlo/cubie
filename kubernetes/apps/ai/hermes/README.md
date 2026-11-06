@@ -1,6 +1,6 @@
 # Hermes household instances
 
-Samwise is the first household instance. The shared `base/` supplies the pinned Hermes runtime, Camofox sidecar, dashboard/browser Services, separate runtime/browser PVCs and initialization. Each directory under `instances/` supplies identity, configuration, hostname, resource-name patches, selectors and Secret references.
+Samwise is the first household instance. The shared `base/` supplies the pinned Hermes runtime, Camofox sidecar, dashboard/browser/API Services, separate runtime/browser PVCs and initialization. Each directory under `instances/` supplies identity, configuration, hostname, resource-name patches, selectors and Secret references.
 
 | Setting | Samwise |
 | --- | --- |
@@ -8,6 +8,7 @@ Samwise is the first household instance. The shared `base/` supplies the pinned 
 | Dashboard | `https://samwise.${DOMAIN_0}` |
 | Browser desktop | `https://samwise-browser.${DOMAIN_0}/vnc.html?autoconnect=true&resize=remote` |
 | Browser PVC | `ai/hermes-samwise-browser` |
+| Assist API | `https://samwise-api.${DOMAIN_0}`, bearer authentication and LAN allowlist |
 | Authentik application | `Samwise (Hermes)`, slug `hermes-samwise` |
 | Dashboard OAuth client | `hermes-samwise-dashboard`, public client with PKCE |
 | Access group | `app_hermes_samwise`, initially only `sveatlo` |
@@ -36,15 +37,33 @@ Encrypted files are not Kustomize resources. Apply them manually at cutover:
 ```bash
 hack/apply-secret.sh kubernetes/apps/ai/config/hermes-samwise-credentials.yaml.sops
 hack/apply-secret.sh kubernetes/apps/ai/config/hermes-samwise-homeassistant.yaml.sops
+hack/apply-secret.sh kubernetes/apps/ai/config/hermes-samwise-api.yaml.sops
 ```
 
-The first Secret contains only the existing four Telegram settings. The second contains only the existing `HASS_URL` and `HASS_TOKEN`. No operator, GitHub or webhook credentials are copied. Do not restore the old `.env`.
+The first Secret contains only the existing four Telegram settings. The second contains only the existing `HASS_URL` and `HASS_TOKEN`. The third contains the dedicated inbound `API_SERVER_KEY`; it is separate from the agent's HA administrator credential and Telegram settings. No operator, GitHub or webhook credentials are copied. Do not restore the old `.env`.
 
 The configure init container projects these two Secrets into `/managed-env` and synchronizes their keys into `/opt/data/.env` before invoking Hermes. The gateway can read the same projection; browser and Mealie containers cannot. The profile file is mode `0600`, preserves unrelated runtime settings, and records managed key names (not values) in `.managed-env-keys.json`. A later rollout refreshes rotated values and removes keys deleted from the managed Secrets. Secret updates still require a Pod rollout; changing projected files alone does not rerun initialization.
 
 This profile copy is required by Hermes v0.22.7: `hermes_cli.config.reload_env()` removes known environment variables absent from `.env`, including Kubernetes-injected Telegram and Home Assistant settings. An owner-issued `/reload` reproduced the failure on 2026-11-04: ID `221832708` was authorized initially, then denied after its process allowlist was removed. A gateway-only restart restored the injected environment; syncing the managed keys into the profile prevents the next reload from deleting them. SOPS-encrypted Secrets remain the source of truth; do not rotate these managed values through the dashboard.
 
 OpenAI and Rohlík require fresh sign-ins. No OAuth files or other state are copied from the old PVC. Stop the old gateway before starting Samwise so two instances do not poll the same Telegram bot.
+
+## Home Assistant Assist API
+
+The gateway serves the existing Hermes API on `0.0.0.0:8642`. The instance-specific ClusterIP Service and `samwise-api.${DOMAIN_0}` ingress expose it over HTTPS with `traefik-lan-only`; requests still need the dedicated bearer key. Interactive Authentik is deliberately absent so HA can authenticate noninteractively. The LAN middleware is an ingress restriction, not a pod-level NetworkPolicy. Samwise's tools, memory, identity and approval policy are unchanged.
+
+The dedicated Secret was applied on 2026-11-06. The deployment, Service and ingress changes still require owner merge and Argo reconciliation. The new Secret reference is mandatory; provision it before merging. Do not work around Argo's self-healing by directly patching the deployment.
+
+After sync:
+
+```bash
+kubectl -n ai exec deployment/hermes-samwise -c gateway -- \
+  /opt/hermes/.venv/bin/python /config/smoke_test.py api
+```
+
+This checks authenticated capabilities and unauthenticated rejection without inference. Verify trusted HTTPS and authenticated reachability from HA separately. A read-only `/v1/runs` marker request on the existing loopback API completed successfully in 3.60 seconds; this does not prove the new ingress works.
+
+The HA adapter lives in `home-automation/hass/hermes-assist` in the surrounding Mirkwood workspace; its `SAMWISE.md` documents installation, test-pipeline rollout and recovery. Keep the old Assist pipeline until text, phone and physical-room checks pass. No HA integration or pipeline was changed during API preparation.
 
 ## Mealie
 
@@ -90,7 +109,7 @@ Before rollout:
 
 ## Internal identifier cutover
 
-Resources use `hermes-samwise` followed by the component (`-dashboard`, `-browser`, `-browser-auth`, `-config`, `-credentials`, `-homeassistant`, `-mealie`). The ConfigMap also carries Kustomize's content hash. The instance label is `hermes-samwise`; the reusable base keeps generic names. Name-change patches record the original resource identities so Kustomize updates built-in references, including the generated ConfigMap. Traefik CRD references are explicit.
+Resources use `hermes-samwise` followed by the component (`-dashboard`, `-browser`, `-browser-auth`, `-config`, `-credentials`, `-homeassistant`, `-mealie`, `-api`). The ConfigMap also carries Kustomize's content hash. The instance label is `hermes-samwise`; the reusable base keeps generic names. Name-change patches record the original resource identities so Kustomize updates built-in references, including the generated ConfigMap. Traefik CRD references are explicit.
 
 Public URLs (`samwise` and `samwise-browser`) and the Authentik group `app_hermes_samwise` are unchanged. The dashboard OAuth client becomes `hermes-samwise-dashboard`; its provider and issuer remain `hermes-samwise`. Authentik and Hermes must both sync before testing sign-in; existing dashboard sessions may need a new login.
 
@@ -188,6 +207,7 @@ All instances start at zero replicas unless their overlay explicitly activates t
 - [Mealie API tokens](https://docs.mealie.io/documentation/getting-started/api-usage/)
 - [Kubernetes native sidecar startup and lifecycle](https://kubernetes.io/docs/concepts/workloads/pods/sidecar-containers/)
 
+- [Hermes v0.22.7 API server](https://github.com/NousResearch/hermes-agent/blob/v0.22.7/website/docs/user-guide/api-server.md)
 - [Hermes v0.22.6 profiles and isolation limits](https://github.com/NousResearch/hermes-agent/blob/v0.22.6/website/docs/user-guide/profiles.md)
 - [Hermes v0.22.6 dashboard](https://github.com/NousResearch/hermes-agent/blob/v0.22.6/website/docs/user-guide/features/web-dashboard.md)
 - [Hermes v0.22.6 plugin installation](https://github.com/NousResearch/hermes-agent/blob/v0.22.6/hermes_cli/plugins_cmd_install.py)
