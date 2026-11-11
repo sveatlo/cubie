@@ -62,9 +62,9 @@ statefulset:
         capacity: 2
         timeout: 1h
         labels:
-          - ubuntu-latest:docker://catthehacker/ubuntu:act-22.04-20260815
-          - ubuntu-22.04:docker://catthehacker/ubuntu:act-22.04-20260815
-          - ubuntu-24.04:docker://catthehacker/ubuntu:act-24.04-20260815
+          - ubuntu-latest:docker://catthehacker/ubuntu:act-22.04-20261111
+          - ubuntu-22.04:docker://catthehacker/ubuntu:act-22.04-20261111
+          - ubuntu-24.04:docker://catthehacker/ubuntu:act-24.04-20261111
 
   dind:
     rootless: true
