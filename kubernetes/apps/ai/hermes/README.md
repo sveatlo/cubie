@@ -14,7 +14,7 @@ Samwise is the first household instance. The shared `base/` supplies the pinned 
 | Access group | `app_hermes_samwise`, initially only `sveatlo` |
 | Telegram | Existing bot token, username, owner allowlist and home channel |
 | Model | OpenAI subscription OAuth with a fresh sign-in, no paid API fallback |
-| Integrations | Home Assistant administrator access, Rohlík MCP OAuth and Mealie MCP |
+| Integrations | Home Assistant administrator access, Rohlík MCP OAuth, Mealie MCP and Baby Buddy REST API |
 
 Separate Deployments, PVCs, ConfigMaps, Secrets and Authentik access keep instances' state apart. Hermes profiles alone are not the isolation boundary: the dashboard can administer profiles within its installation. This is not hostile-tenant isolation; the cluster and NFS administrators still control the data.
 
@@ -38,15 +38,24 @@ Encrypted files are not Kustomize resources. Apply them manually at cutover:
 hack/apply-secret.sh kubernetes/apps/ai/config/hermes-samwise-credentials.yaml.sops
 hack/apply-secret.sh kubernetes/apps/ai/config/hermes-samwise-homeassistant.yaml.sops
 hack/apply-secret.sh kubernetes/apps/ai/config/hermes-samwise-api.yaml.sops
+hack/apply-secret.sh kubernetes/apps/ai/config/hermes-samwise-babybuddy.yaml.sops
 ```
 
 The first Secret contains only the existing four Telegram settings. The second contains only the existing `HASS_URL` and `HASS_TOKEN`. The third contains the dedicated inbound `API_SERVER_KEY`; it is separate from the agent's HA administrator credential and Telegram settings. No operator, GitHub or webhook credentials are copied. Do not restore the old `.env`.
 
-The configure init container projects all three Secrets into `/managed-env` and synchronizes their keys into `/opt/data/.env` before invoking Hermes. The gateway can read the same projection; browser and Mealie containers cannot. The profile file is mode `0600`, preserves unrelated runtime settings, and records managed key names (not values) in `.managed-env-keys.json`. A later rollout refreshes rotated values and removes keys deleted from the managed Secrets. Secret updates still require a Pod rollout; changing projected files alone does not rerun initialization.
+The Baby Buddy Secret contains `BABYBUDDY_API_URL` (the HTTPS origin) and `BABYBUDDY_API_KEY`. Only the gateway imports it into its environment; it is also projected for managed profile synchronization.
+
+The configure init container projects all four Secrets into `/managed-env` and synchronizes their keys into `/opt/data/.env` before invoking Hermes. The gateway can read the same projection; browser and Mealie containers cannot. The profile file is mode `0600`, preserves unrelated runtime settings, and records managed key names (not values) in `.managed-env-keys.json`. A later rollout refreshes rotated values and removes keys deleted from the managed Secrets. Secret updates still require a Pod rollout; changing projected files alone does not rerun initialization.
 
 This profile copy is required by Hermes v0.22.7: `hermes_cli.config.reload_env()` removes known environment variables absent from `.env`, including Kubernetes-injected Telegram and Home Assistant settings. An owner-issued `/reload` reproduced the failure on 2026-11-04: ID `221832708` was authorized initially, then denied after its process allowlist was removed. A gateway-only restart restored the injected environment; syncing the managed keys into the profile prevents the next reload from deleting them. SOPS-encrypted Secrets remain the source of truth; do not rotate these managed values through the dashboard.
 
 OpenAI and Rohlík require fresh sign-ins. No OAuth files or other state are copied from the old PVC. Stop the old gateway before starting Samwise so two instances do not poll the same Telegram bot.
+
+## Baby Buddy
+
+Samwise can call the [Baby Buddy v2.11.0 REST API](https://github.com/babybuddy/babybuddy/blob/v2.11.0/docs/api.md) directly through its terminal tool. Use `BABYBUDDY_API_URL` as the origin, append `/api/`, and authenticate with `Authorization: Token <BABYBUDDY_API_KEY>` (not Bearer). `/api/` lists endpoints; `/api/schema` provides the schema. Never print the key or include it in chat, command arguments or committed files.
+
+The key retains its Baby Buddy user's permissions; this setup does not impose read-only access. Credential rotation requires applying the encrypted Secret and rolling out the Pod so the managed profile is refreshed. Deploy the overlay through the normal owner merge and ArgoCD reconciliation.
 
 ## Home Assistant Assist API
 

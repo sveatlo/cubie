@@ -93,6 +93,11 @@ patches:
       - op: replace
         path: /spec/template/spec/containers/0/envFrom/2/secretRef/name
         value: hermes-samwise-homeassistant
+      - op: add
+        path: /spec/template/spec/containers/0/envFrom/-
+        value:
+          secretRef:
+            name: hermes-samwise-babybuddy
   - target:
       kind: Deployment
       name: hermes
@@ -114,3 +119,5 @@ patches:
                         name: hermes-samwise-homeassistant
                     - secret:
                         name: hermes-samwise-api
+                    - secret:
+                        name: hermes-samwise-babybuddy

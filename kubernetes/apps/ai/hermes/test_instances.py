@@ -117,6 +117,16 @@ class InstanceTests(unittest.TestCase):
         for platform in ("telegram", "cli", "api_server"):
             self.assertIn("mcp-mealie", config["platform_toolsets"][platform])
 
+    def test_babybuddy_credentials_are_managed_and_injected_only_into_gateway(self):
+        pod = next(r for r in self.resources if r["kind"] == "Deployment")["spec"]["template"]["spec"]
+        reference = {"secretRef": {"name": "hermes-samwise-babybuddy"}}
+        for container in pod["containers"] + pod["initContainers"]:
+            self.assertEqual(reference in container.get("envFrom", []), container["name"] == "gateway")
+        volume = next(v for v in pod["volumes"] if v["name"] == "managed-env")
+        self.assertIn({"secret": {"name": "hermes-samwise-babybuddy"}}, volume["projected"]["sources"])
+        base = next(r for r in render(ROOT / "base") if r["kind"] == "Deployment")
+        self.assertNotIn("babybuddy", yaml.safe_dump(base))
+
     def test_only_fresh_instance_storage_is_managed_and_mounted(self):
         claims = {r["metadata"]["name"]: r for r in self.resources if r["kind"] == "PersistentVolumeClaim"}
         self.assertEqual(set(claims), {"hermes-samwise", "hermes-samwise-browser"})
@@ -134,7 +144,7 @@ class InstanceTests(unittest.TestCase):
         deployment = next(r for r in self.resources if r["kind"] == "Deployment")
         volumes = deployment["spec"]["template"]["spec"]["volumes"]
         self.assertEqual(next(v for v in volumes if v["name"] == "config")["configMap"]["name"], config["metadata"]["name"])
-        for component in ("credentials", "homeassistant", "mealie"):
+        for component in ("credentials", "homeassistant", "mealie", "babybuddy"):
             self.assertTrue((ROOT.parent / "config" / f"hermes-samwise-{component}.yaml.sops").exists())
 
     def test_generated_config_contains_only_household_runtime(self):

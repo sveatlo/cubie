@@ -46,6 +46,7 @@ class HomeAssistantTests(unittest.TestCase):
                 {"secret": {"name": "hermes-samwise-credentials"}},
                 {"secret": {"name": "hermes-samwise-homeassistant"}},
                 {"secret": {"name": "hermes-samwise-api"}},
+                {"secret": {"name": "hermes-samwise-babybuddy"}},
             ],
         })
 
