@@ -81,7 +81,7 @@ spec:
       terminationGracePeriodSeconds: 60
       initContainers:
         - name: browser-binary
-          image: &browserImage ghcr.io/jo-inc/camofox-browser:1.18.1@sha256:cff2c1432b609bde9c9d0b91e5b924dae0799d3c7bc9d468c0bc949325beaf2a
+          image: &browserImage ghcr.io/jo-inc/camofox-browser:1.19.0@sha256:49f8e02f9fb0e191b406845482745efc72f835db06789e3a34e77a6ff1497046
           command: [cp, -R, /root/.cache/camoufox/., /browser/]
           securityContext:
             runAsUser: 0
@@ -166,7 +166,7 @@ spec:
             - name: browser-shm
               mountPath: /dev/shm
         - name: configure
-          image: &image docker.io/nousresearch/hermes-agent:v0.23.0@sha256:adb7890916de63245523492be8f68f9d2095fecbec4e2a6dab7960381f0fc002
+          image: &image docker.io/nousresearch/hermes-agent:v0.23.1@sha256:276d44685c65c0cb2a25f190b63c65c8906f9dc76486fb1c05ae71b5826bda08
           command: [/opt/hermes/.venv/bin/python, /config/init.py]
           env: &home
             - name: HERMES_HOME

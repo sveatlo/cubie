@@ -8,7 +8,7 @@ spec:
       initContainers:
         - name: mealie-mcp
           restartPolicy: Always
-          image: ghcr.io/djwmarcx/better-mealie-mcp:3.30.0@sha256:db892bbaed99cf08e381585b5b35833ca07c0f34d14ab0d15859a849cdd367fb
+          image: ghcr.io/djwmarcx/better-mealie-mcp:3.31.0@sha256:971cc79e2f4712309ba2e13e5300a02cb69e681facf0aa10a9a819efd55ae5dd
           args: [--http, "8000"]
           env:
             - name: MCP_HOST
