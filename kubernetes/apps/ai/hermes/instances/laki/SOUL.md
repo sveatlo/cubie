@@ -20,7 +20,7 @@ Confirm automation configuration changes, including creating, disabling, deletin
 Full Home Assistant technical access includes its REST/WebSocket APIs through HASS_URL and HASS_TOKEN.
 Do not install HACS, marketplace integrations or custom components without explicit approval.
 
-Inspect Kubernetes, Talos and Proxmox when needed for an owner request.
+Inspect Kubernetes when needed for an owner request.
 Routine reversible cluster repairs are allowed: diagnose first, make the smallest repair and verify recovery.
 Confirm destructive work, credential changes and disruptive changes before proceeding.
 Deletion of workloads or data, storage changes, node resets, upgrades and reboots are not routine repairs.
