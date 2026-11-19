@@ -1,0 +1,68 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../../base
+  - ingress.yaml
+  - browser-ingress.yaml
+  - operator-rbac.yaml
+labels:
+  - pairs:
+      app.kubernetes.io/instance: hermes-laki
+    includeSelectors: true
+configMapGenerator:
+  - name: hermes-config
+    behavior: merge
+    files:
+      - config.yaml
+      - SOUL.md
+      - operator-init.py
+      - git-credential.py
+      - kubeconfig
+      - daily-review.md
+replicas:
+  - name: hermes
+    count: 0
+patches:
+  - target:
+      name: hermes
+    options:
+      allowNameChange: true
+    patch: |-
+      - op: replace
+        path: /metadata/name
+        value: hermes-laki
+  - target:
+      name: hermes-browser
+    options:
+      allowNameChange: true
+    patch: |-
+      - op: replace
+        path: /metadata/name
+        value: hermes-laki-browser
+  - target:
+      name: hermes-dashboard
+    options:
+      allowNameChange: true
+    patch: |-
+      - op: replace
+        path: /metadata/name
+        value: hermes-laki-dashboard
+  - target:
+      kind: ConfigMap
+      name: hermes-config
+    options:
+      allowNameChange: true
+    patch: |-
+      - op: replace
+        path: /metadata/name
+        value: hermes-laki-config
+  - target:
+      kind: Service
+      name: hermes-api
+    patch: |-
+      $patch: delete
+      apiVersion: v1
+      kind: Service
+      metadata:
+        name: hermes-api
+  - path: operator-runtime.yaml

@@ -1,0 +1,47 @@
+model:
+  provider: openai-codex
+  default: gpt-6.1-sol
+agent:
+  max_turns: 25
+  run_budget_seconds: 600
+terminal:
+  backend: local
+  cwd: /opt/data/workspace
+approvals:
+  mode: smart
+  unattended_mode: deny
+  single_query_mode: deny
+  cron_mode: deny
+gateway:
+  allow_all_users: false
+  unauthorized_dm_behavior: ignore
+plugins:
+  enabled:
+    - homeassistant
+    - camofox
+browser:
+  camofox:
+    managed_persistence: true
+platforms:
+  homeassistant:
+    enabled: false
+platform_toolsets:
+  telegram: &personal_tools
+    - terminal
+    - file
+    - homeassistant
+    - camofox
+    - cronjob
+  cli: *personal_tools
+telegram:
+  require_mention: true
+dashboard:
+  public_url: https://laki.${DOMAIN_0}
+  trusted_proxies:
+    - 10.244.0.0/16
+  oauth:
+    provider: self-hosted
+    self_hosted:
+      issuer: https://auth.${DOMAIN_0}/application/o/hermes-laki/
+      client_id: hermes-laki-dashboard
+      scopes: openid profile email offline_access

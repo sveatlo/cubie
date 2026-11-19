@@ -17,7 +17,7 @@ def render(path):
 class InstanceTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.resources = render(ROOT)
+        cls.resources = render(ROOT / "instances/samwise")
 
     def test_active_instance_has_one_gateway_and_no_operator_permissions(self):
         deployments = [r for r in self.resources if r["kind"] == "Deployment"]

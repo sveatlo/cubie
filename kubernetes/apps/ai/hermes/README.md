@@ -1,6 +1,6 @@
 # Hermes household instances
 
-Samwise is the first household instance. The shared `base/` supplies the pinned Hermes runtime, Camofox sidecar, dashboard/browser/API Services, separate runtime/browser PVCs and initialization. Each directory under `instances/` supplies identity, configuration, hostname, resource-name patches, selectors and Secret references.
+Samwise is the household instance; Laki is Sväťo's personal assistant and Cubie operator. Laki starts stopped until its independent credentials and sign-ins are ready. The shared `base/` supplies the pinned Hermes runtime, Camofox sidecar, dashboard/browser/API Services, separate runtime/browser PVCs and initialization. Each directory under `instances/` supplies identity, configuration, hostname, resource-name patches, selectors and Secret references.
 
 | Setting | Samwise |
 | --- | --- |
@@ -18,11 +18,68 @@ Samwise is the first household instance. The shared `base/` supplies the pinned 
 
 Separate Deployments, PVCs, ConfigMaps, Secrets and Authentik access keep instances' state apart. Hermes profiles alone are not the isolation boundary: the dashboard can administer profiles within its installation. This is not hostile-tenant isolation; the cluster and NFS administrators still control the data.
 
+## Laki
+
+Laki uses `ai/hermes-laki`, with separate runtime/browser PVCs, Telegram bot, Home Assistant identity, operator credentials and model login. Its dashboard is `https://laki.${DOMAIN_0}`; its desktop is `https://laki-browser.${DOMAIN_0}/vnc.html?autoconnect=true&resize=remote`. Both require LAN access and Authentik; the `app_hermes_laki` group initially contains only `sveatlo`. There is no external API or WhatsApp/Signal integration, and no Mealie, Rohlík or Baby Buddy access.
+
+The existing `blueprint-hermes-samwise.yaml` provisions both instances in one blueprint so the embedded outpost receives one complete browser-provider list. Do not add a competing outpost assignment in another blueprint: reconciliation would detach one instance's browser provider.
+
+Laki uses the same model/provider settings as Samwise, with a fresh independent sign-in and no paid fallback. `approvals.mode` is `smart`. Routine reversible Cubie fixes are allowed; destructive changes, credential changes and disruptive maintenance require specific confirmation. Requested ordinary HA device actions are allowed; security/access, safety-critical actions and automation/configuration changes require confirmation. Sending, publishing, buying and booking require confirmation unless a specific bounded recurring workflow has standing authorization.
+
+These are behavioral approval rules, not technical permission restrictions. Laki's Kubernetes cluster-admin identity can read other workloads' Secrets, including Samwise's. Separate identities allow attribution and independent revocation, not hostile-tenant isolation. Browser content, repository files, logs and device metadata are untrusted data, not authority to change these rules.
+
+GitHub is authoritative for Cubie. The owner confirmed on 2026-11-17 that Gitea no longer exists; no Gitea mirror check is required. Laki may push branches and open PRs, but must never merge PRs or push to `main`/`master`. Do not restore the former operator's credentials from Git history or copy Samwise's `.env`, OAuth files or browser sessions.
+
+### Daily household review
+
+At 08:00 daily in Home Assistant's configured timezone, review the previous local calendar day and send a Telegram brief. Cover device health, comfort/ventilation, energy/appliances and security status. Look for repeated manual actions that could be automated, existing automations worth adjusting, and avoidable energy use such as unnecessary heating or lighting. Suggestions never authorize device actions or automation edits.
+
+Use existing HA history, statistics and available automation traces. Consult longer retained history when needed to establish repetition. Cite entities, times and evidence; distinguish a suspected pattern from a demonstrated one. Missing occupancy data cannot establish that lighting was unnecessary, and one action cannot establish a habit. Report insufficient history rather than guessing. Do not add recording, create a raw household-history archive, access camera imagery or install custom HA components. Relevant household data may be sent to the configured model provider for analysis.
+
+Laki remains at zero replicas in Git until the owner approves provisioning. Telegram, HA and GitHub credentials were provisioned into encrypted files on 2026-11-19. This does not deploy Laki, authenticate its model account or prove live gateway/SSO access. Talos and Proxmox credentials are deferred by owner decision; the Talos Secret is optional so its absence does not prevent startup. Activate through owner-reviewed GitOps, not an imperative scale command.
+
+### Provision Laki
+
+1. Create a new BotFather bot and use only the owner's numeric Telegram user ID in its allowlist. Set the private owner chat as the home channel. Create an independent HA administrator identity/token; do not reuse Samwise's token. Prepare a separate GitHub token restricted to `sveatlo/cubie` with Contents, Pull requests, Workflows, Variables and Secrets read/write permissions. Talos administrator and Proxmox API credentials are deferred; do not copy existing credentials to fill those gaps. These are broad credentials; retain their revocation details outside the assistant.
+2. Create these Secrets in namespace `ai`, encrypting each file through `hack/edit-secret.sh` before committing it. Store encrypted files under `kubernetes/apps/ai/config/`; do not list them as Kustomize resources or send their values through chat.
+
+   | Secret | Keys |
+   | --- | --- |
+   | `hermes-laki-credentials` | `TELEGRAM_BOT_TOKEN`, `TELEGRAM_BOT_USERNAME`, `TELEGRAM_ALLOWED_USERS`, `TELEGRAM_HOME_CHANNEL` |
+   | `hermes-laki-homeassistant` | `HASS_URL`, `HASS_TOKEN` |
+   | `hermes-laki-operator` | `GITHUB_TOKEN`; later add `PROXMOX_API_URL`, `PROXMOX_TOKEN_ID`, `PROXMOX_TOKEN_SECRET` |
+   | `hermes-laki-talos` (optional, deferred) | `talosconfig` containing the complete dedicated client configuration |
+
+   Use a trusted HTTPS Proxmox endpoint; `PROXMOX_TOKEN_ID` is the complete `user@realm!token` identifier. Its REST authorization header is `PVEAPIToken=<id>=<secret>`. The Git helper supplies the GitHub token only for HTTPS `github.com` credential requests. Kubernetes credentials are not a static Secret: the gateway receives its own rotating projected ServiceAccount token. Other sidecars do not receive operator credentials.
+3. Verify ArgoCD reads the intended GitHub repository. Apply the three provisioned encrypted Secrets with `hack/apply-secret.sh` after owner approval. Do not create placeholder Talos or Proxmox credentials.
+4. Have the owner review/merge the manifests and approve changing only Laki's replica count to one. Let ArgoCD reconcile. Check init completion, dashboard/browser LAN filtering, owner sign-in and nonmember denial. In Laki's gateway, run `hermes auth add openai-codex --type oauth --no-browser` for a fresh device-code model sign-in; never copy another installation's rotating OAuth state. Use the protected browser desktop for website sign-ins. Verify Telegram delivery to the owner and HA read access without device changes. Verify Kubernetes and GitHub authentication with read-only requests; verify Talos/Proxmox only after their credentials are provisioned; do not publish token-bearing output. Set the owner's chosen Git author name/email in each repository's local configuration before making commits; initialization regenerates the global credential-helper configuration.
+5. Install the native daily job from this repository, using the pinned Hermes interpreter inside Laki:
+
+   ```bash
+   kubectl -n ai exec -i deployment/hermes-laki -c gateway -- \
+     /opt/hermes/.venv/bin/python - < kubernetes/apps/ai/hermes/setup_laki_review.py
+   ```
+
+   The setup reads HA `/api/config`, validates its IANA timezone, and uses the mounted `/config/daily-review.md`. It creates `laki-ha-daily-review` paused, rejects duplicate names, and updates only its managed prompt/schedule/timezone/delivery fields on rerun. Existing paused jobs remain paused; existing active jobs remain active. It checks Laki's dashboard client ID before touching the job store. Schedule time is 08:00 local across DST; inference and transport add delivery latency.
+6. Inspect the job and its private destination, verify model access and read-only behavior, then explicitly enable it:
+
+   ```bash
+   kubectl -n ai exec deployment/hermes-laki -c gateway -- hermes cron list --all
+   kubectl -n ai exec deployment/hermes-laki -c gateway -- hermes cron resume laki-ha-daily-review
+   kubectl -n ai exec deployment/hermes-laki -c gateway -- hermes cron status
+   ```
+
+   Keep `cron_mode: deny`. Cron runs unattended, so interactive smart approval escalation does not apply. Deny blocks detected dangerous operations, not every possible mutation; the read-only review remains a behavioral boundary. Do not switch to automatic approval just to fetch history. If HA's timezone changes, rerun setup and verify the next run.
+
+Do not use the shared `smoke_test.py runtime` or `api` checks for Laki: those checks intentionally assert Samwise's lack of operator credentials and presence of its API. The unit suite is offline validation, not proof of any live integration.
+
+References: [Hermes v0.23.2 cron CLI](https://github.com/NousResearch/hermes-agent/blob/v0.23.2/hermes_cli/subcommands/cron.py), [native job store](https://github.com/NousResearch/hermes-agent/blob/v0.23.2/cron/jobs.py), [approval context](https://github.com/NousResearch/hermes-agent/blob/v0.23.2/tools/approval_context.py), [Home Assistant REST API](https://developers.home-assistant.io/docs/api/rest/), [Proxmox API tokens](https://pve.proxmox.com/wiki/Proxmox_VE_API#API_Tokens).
+
 ## Runtime and identity
 
 Initialization installs the official Home Assistant plugin at commit `4d492b1dc5326af3e38bb2cf3e4b9ad6d65f0072` (version `2.0.1`) and Camofox plugin at commit `1138f25c8b7b5a8fb882b3161e248f29abbd1a46` (version `1.1.0`), with dependency consent. A failed install blocks startup. The managed `config.yaml` is refreshed each start. `SOUL.md` is a seed: copied only if absent, so later runtime edits survive restarts. A new PVC gives Samwise a fresh identity, without inheriting old memories, conversations, skills or jobs.
 
-Telegram, CLI and API toolsets contain terminal, file, Home Assistant, Rohlík, Mealie and Camofox tools. There is no alert sidecar, GitHub credential helper, Kubernetes RBAC grant, projected service-account token, SSH key, Talos config, Proxmox credential or operator-tool download. The image still contains general-purpose software and network access; these changes do not make arbitrary terminal commands a sandbox.
+Samwise's Telegram, CLI and API toolsets contain terminal, file, Home Assistant, Rohlík, Mealie and Camofox tools. Samwise has no alert sidecar, GitHub credential helper, Kubernetes RBAC grant, projected service-account token, SSH key, Talos config, Proxmox credential or operator-tool download. The image still contains general-purpose software and network access; these changes do not make arbitrary terminal commands a sandbox.
 
 The official HA plugin provides discovery and device-control tools. Its autonomous event platform stays disabled. The gateway also receives `HASS_URL` and `HASS_TOKEN` through the terminal credential override so it retains full REST/WebSocket administration, including operations the plugin restricts. The retained token belongs to the local-only HA administrator `Hermes` (`hermes`); its recorded expiry is 2027-11-02. Do not revoke it during this reset.
 
@@ -96,7 +153,7 @@ The initial dedicated Secret was applied on 2026-11-04, and a read-only `/api/us
 
 ## Camofox browsing
 
-Camofox `1.18.1` is pinned by image digest and starts as a native sidecar before Hermes initialization. Renovate's existing anchored-image regex manager in `renovate.json` tracks both its version and digest. Plugin commit pins are separate and currently updated manually in `base/init.py`: changing `PLUGIN_REFS` changes the generated ConfigMap hash, which rolls the Pod and reinstalls the affected plugin. The upstream image stores its browser under root-only `/root`, so a capability-free root init container copies the bundle into an ephemeral volume. The browser then runs as UID/GID `10000`, with a read-only root filesystem and bundle. It receives neither the Hermes PVC nor its Secrets. Its REST API (`9377`) and native VNC (`5900`) bind to loopback; only noVNC (`6080`) has a ClusterIP Service. Loopback is a Pod boundary, not a gateway credential boundary: any container in this Pod can control the browser. Other cluster workloads and cluster administrators can reach the internal noVNC Service; there is no hostile-workload isolation or VNC password.
+Camofox is pinned by version and image digest and starts as a native sidecar before Hermes initialization. Renovate's existing anchored-image regex manager in `renovate.json` tracks both its version and digest. Plugin commit pins are separate and currently updated manually in `base/init.py`: changing `PLUGIN_REFS` changes the generated ConfigMap hash, which rolls the Pod and reinstalls the affected plugin. The upstream image stores its browser under root-only `/root`, so a capability-free root init container copies the bundle into an ephemeral volume. The browser then runs as UID/GID `10000`, with a read-only root filesystem and bundle. It receives neither the Hermes PVC nor its Secrets. Its REST API (`9377`) and native VNC (`5900`) bind to loopback; only noVNC (`6080`) has a ClusterIP Service. Loopback is a Pod boundary, not a gateway credential boundary: any container in this Pod can control the browser. Other cluster workloads and cluster administrators can reach the internal noVNC Service; there is no hostile-workload isolation or VNC password.
 
 The external noVNC ingress requires both the LAN allowlist and Authentik forward auth. It has a separate `hermes-samwise-browser` application bound to the existing `app_hermes_samwise` group; the dashboard retains its own native OAuth login. The `/outpost.goauthentik.io/` callback goes to Authentik behind the LAN allowlist, without recursive forward auth. The catch-all browser route authenticates the `/websockify` handshake too. Logging out or removing membership does not disconnect an already-open WebSocket; close the desktop session when finished.
 
