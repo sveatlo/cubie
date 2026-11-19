@@ -21,7 +21,7 @@ configMapGenerator:
       - daily-review.md
 replicas:
   - name: hermes
-    count: 0
+    count: 1
 patches:
   - target:
       name: hermes

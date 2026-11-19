@@ -39,8 +39,8 @@ class LakiTests(unittest.TestCase):
         cls.cm = next(r for r in cls.laki if r["kind"] == "ConfigMap")
         cls.config = yaml.safe_load(cls.cm["data"]["config.yaml"])
 
-    def test_inactive_shared_image_and_fresh_isolated_storage(self):
-        self.assertEqual(self.deployment["spec"]["replicas"], 0)
+    def test_active_shared_image_and_fresh_isolated_storage(self):
+        self.assertEqual(self.deployment["spec"]["replicas"], 1)
         samwise = next(r for r in self.resources if r["kind"] == "Deployment"
                        and r["metadata"]["name"] == "hermes-samwise")
         self.assertEqual(self.gateway["image"], samwise["spec"]["template"]["spec"]["containers"][0]["image"])
