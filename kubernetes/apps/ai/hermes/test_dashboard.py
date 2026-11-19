@@ -21,7 +21,7 @@ class DashboardTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.config = yaml.safe_load((ROOT / "instances/samwise/config.yaml").read_text())
-        cls.resources = list(yaml.safe_load_all(subprocess.check_output(["kubectl", "kustomize", str(ROOT)], text=True)))
+        cls.resources = list(yaml.safe_load_all(subprocess.check_output(["kubectl", "kustomize", str(ROOT / "instances/samwise")], text=True)))
         cls.authentik = ROOT.parent.parent / "authentik"
         cm = yaml.safe_load((cls.authentik / "config/blueprint-hermes-samwise.yaml").read_text())
         cls.blueprint = yaml.load(cm["data"]["hermes-samwise.yaml"], Loader=BlueprintLoader)

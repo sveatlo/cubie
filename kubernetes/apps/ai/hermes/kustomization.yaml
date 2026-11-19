@@ -3,3 +3,66 @@ kind: Kustomization
 namespace: ai
 resources:
   - instances/samwise
+  - instances/laki
+patches:
+  - target:
+      kind: Deployment
+      name: hermes-samwise
+    patch: |-
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: hermes-samwise
+      spec:
+        template:
+          spec:
+            volumes:
+              - name: managed-env
+              - name: mealie-tmp
+              - name: browser-binary
+              - name: browser-data
+                persistentVolumeClaim:
+                  claimName: hermes-samwise-browser
+              - name: browser-tmp
+              - name: browser-shm
+              - name: data
+                persistentVolumeClaim:
+                  claimName: hermes-samwise
+              - name: config
+                configMap:
+                  name: hermes-samwise-config
+  - target:
+      kind: Deployment
+      name: hermes-laki
+    patch: |-
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: hermes-laki
+      spec:
+        template:
+          spec:
+            volumes:
+              - name: config
+                configMap:
+                  name: hermes-laki-config
+              - name: data
+                persistentVolumeClaim:
+                  claimName: hermes-laki
+              - name: browser-data
+                persistentVolumeClaim:
+                  claimName: hermes-laki-browser
+  - target:
+      kind: Ingress
+      name: hermes-samwise-dashboard
+    patch: |-
+      - op: replace
+        path: /spec/rules/0/http/paths/0/backend/service/name
+        value: hermes-samwise-dashboard
+  - target:
+      kind: Ingress
+      name: hermes-laki-dashboard
+    patch: |-
+      - op: replace
+        path: /spec/rules/0/http/paths/0/backend/service/name
+        value: hermes-laki-dashboard

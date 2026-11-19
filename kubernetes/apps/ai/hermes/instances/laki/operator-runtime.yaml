@@ -1,0 +1,110 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hermes
+spec:
+  template:
+    spec:
+      serviceAccountName: hermes-laki
+      initContainers:
+        - name: operator-configure
+          image: docker.io/nousresearch/hermes-agent:v0.23.2@sha256:d6746a084e9341baada483e3d6210444d3c1aeb7c130f0915150065fb2851459
+          command: [/opt/hermes/.venv/bin/python, /config/operator-init.py]
+          env:
+            - name: HERMES_HOME
+              value: /opt/data
+            - name: HOME
+              value: /opt/data
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 10000
+            runAsGroup: 10000
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: [ALL]
+            seccompProfile:
+              type: RuntimeDefault
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              memory: 512Mi
+          volumeMounts:
+            - name: data
+              mountPath: /opt/data
+            - name: config
+              mountPath: /config
+              readOnly: true
+      containers:
+        - name: gateway
+          envFrom:
+            - secretRef:
+                name: hermes-laki-credentials
+            - secretRef:
+                name: hermes-laki-homeassistant
+            - prefix: _HERMES_FORCE_
+              secretRef:
+                name: hermes-laki-homeassistant
+            - secretRef:
+                name: hermes-laki-operator
+            - prefix: _HERMES_FORCE_
+              secretRef:
+                name: hermes-laki-operator
+          env:
+            - name: API_SERVER_ENABLED
+              value: "false"
+            - name: API_SERVER_HOST
+              $patch: delete
+            - name: API_SERVER_PORT
+              $patch: delete
+            - name: API_SERVER_KEY
+              $patch: delete
+            - name: GATEWAY_ALLOW_ALL_USERS
+              value: "false"
+            - name: KUBECONFIG
+              value: /config/kubeconfig
+            - name: TALOSCONFIG
+              value: /credentials/talosconfig
+            - name: GIT_CONFIG_GLOBAL
+              value: /opt/data/.gitconfig
+            - name: PATH
+              value: /opt/data/tools:/opt/hermes/bin:/opt/hermes/.venv/bin:/usr/local/bin:/usr/bin:/bin
+          ports:
+            - name: api
+              containerPort: 8642
+              $patch: delete
+          volumeMounts:
+            - name: talos
+              mountPath: /credentials
+              readOnly: true
+            - name: kube-api
+              mountPath: /var/run/secrets/kubernetes.io/serviceaccount
+              readOnly: true
+      volumes:
+        - name: managed-env
+          projected:
+            sources:
+              - secret:
+                  name: hermes-laki-credentials
+              - secret:
+                  name: hermes-laki-homeassistant
+              - secret:
+                  name: hermes-laki-operator
+        - name: talos
+          secret:
+            secretName: hermes-laki-talos
+            optional: true
+            defaultMode: 0440
+        - name: kube-api
+          projected:
+            defaultMode: 0440
+            sources:
+              - serviceAccountToken:
+                  path: token
+                  expirationSeconds: 3600
+              - configMap:
+                  name: kube-root-ca.crt
+                  items:
+                    - key: ca.crt
+                      path: ca.crt

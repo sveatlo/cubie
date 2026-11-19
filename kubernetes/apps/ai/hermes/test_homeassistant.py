@@ -10,7 +10,7 @@ class HomeAssistantTests(unittest.TestCase):
     def setUpClass(cls):
         root = Path(__file__).parent
         cls.config = yaml.safe_load((root / "instances/samwise/config.yaml").read_text())
-        resources = list(yaml.safe_load_all(subprocess.check_output(["kubectl", "kustomize", str(root)], text=True)))
+        resources = list(yaml.safe_load_all(subprocess.check_output(["kubectl", "kustomize", str(root / "instances/samwise")], text=True)))
         deployment = next(r for r in resources if r["kind"] == "Deployment")
         cls.pod = deployment["spec"]["template"]["spec"]
 

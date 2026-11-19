@@ -14,7 +14,7 @@ class BrowserTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.resources = list(yaml.safe_load_all(subprocess.check_output(
-            ["kubectl", "kustomize", str(ROOT)], text=True)))
+            ["kubectl", "kustomize", str(ROOT / "instances/samwise")], text=True)))
         cls.pod = next(r for r in cls.resources if r["kind"] == "Deployment")["spec"]["template"]["spec"]
         cls.config = yaml.safe_load((ROOT / "instances/samwise/config.yaml").read_text())
         cm = yaml.safe_load((ROOT.parent.parent / "authentik/config/blueprint-hermes-samwise.yaml").read_text())
@@ -23,7 +23,7 @@ class BrowserTests(unittest.TestCase):
     def test_browser_starts_nonroot_before_gateway_with_separate_state(self):
         sidecar = next(c for c in self.pod["initContainers"] if c["name"] == "camofox")
         self.assertEqual(sidecar["restartPolicy"], "Always")
-        self.assertIn(":1.18.1@sha256:", sidecar["image"])
+        self.assertRegex(sidecar["image"], r"^ghcr\.io/jo-inc/camofox-browser:\d+\.\d+\.\d+@sha256:[0-9a-f]{64}$")
         self.assertEqual(sidecar["command"][0], "node")
         self.assertTrue(sidecar["securityContext"]["runAsNonRoot"])
         self.assertTrue(sidecar["securityContext"]["readOnlyRootFilesystem"])
@@ -78,7 +78,7 @@ class BrowserTests(unittest.TestCase):
         self.assertEqual(provider["attrs"]["external_host"], "https://samwise-browser.${DOMAIN_0}")
         ids = {e["id"] for e in entries if "id" in e}
         self.assertTrue(ids)
-        self.assertTrue(all(local_id.startswith("hermes-samwise-") for local_id in ids))
+        self.assertTrue(all(local_id.startswith(("hermes-samwise-", "hermes-laki-")) for local_id in ids))
         pending = [entries]
         while pending:
             value = pending.pop()
@@ -98,7 +98,9 @@ class BrowserTests(unittest.TestCase):
         self.assertTrue(bindings[0]["attrs"]["enabled"])
         outpost = next(e for e in entries if e["model"] == "authentik_outposts.outpost")
         self.assertEqual(outpost["identifiers"], {"managed": "goauthentik.io/outposts/embedded"})
-        self.assertEqual(outpost["attrs"]["providers"], [{"key": provider["id"]}])
+        self.assertEqual(outpost["attrs"]["providers"], [
+            {"key": provider["id"]}, {"key": "hermes-laki-browser-provider"},
+        ])
 
 
 if __name__ == "__main__":
