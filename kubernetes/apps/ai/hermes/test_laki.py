@@ -39,6 +39,17 @@ class LakiTests(unittest.TestCase):
         cls.cm = next(r for r in cls.laki if r["kind"] == "ConfigMap")
         cls.config = yaml.safe_load(cls.cm["data"]["config.yaml"])
 
+    def test_config_sources_are_not_git_ignored(self):
+        overlay = yaml.safe_load((LAKI / "kustomization.yaml").read_text())
+        for generator in overlay["configMapGenerator"]:
+            for entry in generator.get("files", []):
+                source = LAKI / entry.split("=", 1)[-1]
+                result = subprocess.run(
+                    ["git", "check-ignore", "--no-index", "--quiet", str(source)],
+                    capture_output=True, text=True,
+                )
+                self.assertEqual(result.returncode, 1, f"Config source is ignored or cannot be checked: {source}")
+
     def test_active_shared_image_and_fresh_isolated_storage(self):
         self.assertEqual(self.deployment["spec"]["replicas"], 1)
         samwise = next(r for r in self.resources if r["kind"] == "Deployment"

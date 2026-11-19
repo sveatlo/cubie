@@ -17,7 +17,7 @@ configMapGenerator:
       - SOUL.md
       - operator-init.py
       - git-credential.py
-      - kubeconfig
+      - kubeconfig=kubernetes-client.yaml
       - daily-review.md
 replicas:
   - name: hermes
