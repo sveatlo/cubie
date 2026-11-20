@@ -46,7 +46,7 @@ class LakiTests(unittest.TestCase):
                 source = LAKI / entry.split("=", 1)[-1]
                 result = subprocess.run(
                     ["git", "check-ignore", "--no-index", "--quiet", str(source)],
-                    capture_output=True, text=True,
+                    capture_output=True, text=True, cwd=ROOT,
                 )
                 self.assertEqual(result.returncode, 1, f"Config source is ignored or cannot be checked: {source}")
 
@@ -117,10 +117,27 @@ class LakiTests(unittest.TestCase):
         self.assertEqual(env["GATEWAY_ALLOW_ALL_USERS"]["value"], "false")
         self.assertIn("cronjob", self.config["platform_toolsets"]["telegram"])
         self.assertEqual(self.config["model"], yaml.safe_load((ROOT / "instances/samwise/config.yaml").read_text())["model"])
-        soul = self.cm["data"]["SOUL.md"]
+        policy = self.cm["data"]["POLICY.md"]
         for boundary in ("confirmation boundary", "Never merge", "Never SSH", "camera imagery", "raw household-history store"):
-            self.assertIn(boundary, soul)
+            self.assertIn(boundary, policy)
         self.assertIn("read-only and suggestions-only", self.cm["data"]["daily-review.md"])
+
+    def test_profile_instruction_files_are_separate_and_mounted(self):
+        for filename in ("SOUL.md", "AGENTS.md", "POLICY.md"):
+            self.assertEqual(self.cm["data"][filename], (LAKI / filename).read_text())
+            self.assertEqual(self.cm["data"][f"trader-{filename}"],
+                             (LAKI / "trader" / filename).read_text())
+        for key in self.cm["data"]:
+            self.assertRegex(key, r"^[-._a-zA-Z0-9]+$")
+        volume = next(v for v in self.pod["volumes"] if v["name"] == "trader-config")
+        self.assertEqual(volume["configMap"]["name"], self.cm["metadata"]["name"])
+        self.assertEqual({item["key"]: item["path"] for item in volume["configMap"]["items"]}, {
+            "trader-config.yaml": "config.yaml", "trader-SOUL.md": "SOUL.md",
+            "trader-AGENTS.md": "AGENTS.md", "trader-POLICY.md": "POLICY.md",
+        })
+        initializer = next(c for c in self.pod["initContainers"] if c["name"] == "profile-configure")
+        self.assertIn({"name": "trader-config", "mountPath": "/config/trader", "readOnly": True},
+                      initializer["volumeMounts"])
 
     def test_operator_token_and_talos_mounts_only_reach_gateway(self):
         self.assertEqual(self.pod["serviceAccountName"], "hermes-laki")

@@ -79,11 +79,53 @@ References: [Hermes v0.23.2 cron CLI](https://github.com/NousResearch/hermes-age
 
 Initialization installs the official Home Assistant plugin at commit `4d492b1dc5326af3e38bb2cf3e4b9ad6d65f0072` (version `2.0.1`) and Camofox plugin at commit `1138f25c8b7b5a8fb882b3161e248f29abbd1a46` (version `1.1.0`), with dependency consent. A failed install blocks startup. The managed `config.yaml` is refreshed each start. `SOUL.md` is a seed: copied only if absent, so later runtime edits survive restarts. A new PVC gives Samwise a fresh identity, without inheriting old memories, conversations, skills or jobs.
 
+### Identity, working instructions and policy
+
+Samwise, Laki's default helper, and Laki's trader profile each have three source files:
+
+| File | Purpose | Runtime management |
+|------|---------|--------------------|
+| `SOUL.md` | Character, values and voice | Seed the profile home once; preserve later edits, including an empty file |
+| `AGENTS.md` | Working practice and required policy read | Refresh `workspace/AGENTS.md` inside that profile home on initialization |
+| `POLICY.md` | Authorization, privacy and confirmation boundaries | Refresh `POLICY.md` inside that profile home on initialization |
+
+Default instance homes are `/opt/data`; trader's home is `/opt/data/profiles/trader` in Laki's Pod.
+Trader uses `/opt/data/profiles/trader/workspace`, not the helper's workspace.
+Managed operating files are mode `0600`; edit their Git sources rather than their runtime copies.
+Initialization refuses symlinked managed workspaces or operating files instead of following them into other state.
+Trader configuration uses flat ConfigMap keys projected into `/config/trader`; ConfigMap keys cannot contain `/`.
+
+**Hermes v0.23.3 loads SOUL independently from the active profile home, but discovers AGENTS from the session's working directory. It does not automatically load POLICY.**
+AGENTS requires reading the active profile's POLICY before acting, with a short SOUL fallback when working-directory context is absent.
+Policy contents are not embedded in either file, as requested by the owner.
+This is a model instruction, not access enforcement or a guarantee that a model will read and obey the file.
+RBAC, credentials, approval modes and the trading gate remain the technical boundaries.
+Profiles within Laki share a process and are not hostile-tenant isolation.
+
+Managed daily-review provisioning explicitly sets `/opt/data/workspace` as the job's `workdir`.
+Every other scheduled agent job needs its own explicit existing profile workspace: global `terminal.cwd` does not enable cron context loading.
+A different cwd, higher-precedence `.hermes.md`/`HERMES.md`, or a context-skipping mode can prevent AGENTS discovery.
+The SOUL pointer is a behavioral fallback, not a replacement for that context.
+
+#### Existing-instance migration
+
+Changing these Git files does not overwrite an existing runtime SOUL or rewrite existing cron jobs.
+After an owner-approved rollout:
+
+1. Inspect each active profile's existing SOUL and managed-file destinations locally without publishing private content. If a destination is a symlink or not a regular file/directory, resolve its ownership explicitly before retrying initialization.
+2. Review and merge the matching source SOUL into the runtime identity, retaining intentional personal edits. Move any old policy customizations into the matching Git POLICY first; do not leave conflicting authorization rules in the old SOUL. An intentionally empty identity remains empty unless the owner chooses to adopt the new seed, so it has no SOUL fallback.
+3. Check the active profile's POLICY and workspace AGENTS match the intended sources. A restart refreshes these managed files, not the personality. Ensure trader's files are under its own profile home.
+4. Re-run the existing `setup_laki_review.py` provisioning procedure to add the helper workspace without resuming the paused job. Review other existing scheduled agent jobs and set their profile-specific workdirs explicitly; this change does not silently migrate them.
+5. **Start a new trader session for this workspace migration.** Existing local/CLI trader sessions can retain the old helper workspace `/opt/data/workspace`; prompt refresh does not migrate that cwd and would load the helper's AGENTS. Check the new session uses `/opt/data/profiles/trader/workspace` before acting. Do not resume an old trader session until its workspace has been explicitly migrated and verified. For other sessions whose workspace is already correct, start a new session or run `hermes sessions refresh-prompts` in the matching instance (`hermes --profile=trader sessions refresh-prompts` for later trader prompt-only updates). Continuing sessions otherwise retain frozen prompt content, even after a restart; a requested refresh is adopted on their next turn and preserves conversation history, not changes to the session workspace.
+6. Verify new-session and scheduled behavior without device, account or trading writes. Filesystem and loader tests do not establish model compliance.
+
+Pinned implementation evidence: [SOUL and AGENTS loading](https://github.com/NousResearch/hermes-agent/blob/caafe5389ae585ef77387a962aee05b1bcf17029/agent/prompt_builder.py), [cron construction](https://github.com/NousResearch/hermes-agent/blob/caafe5389ae585ef77387a962aee05b1bcf17029/cron/scheduler.py#L2442-L2480), and [session prompt refresh](https://github.com/NousResearch/hermes-agent/blob/caafe5389ae585ef77387a962aee05b1bcf17029/hermes_cli/sessions_cmd.py#L1378-L1405).
+
 Samwise's Telegram, CLI and API toolsets contain terminal, file, Home Assistant, Rohlík, Mealie and Camofox tools. Samwise has no alert sidecar, GitHub credential helper, Kubernetes RBAC grant, projected service-account token, SSH key, Talos config, Proxmox credential or operator-tool download. The image still contains general-purpose software and network access; these changes do not make arbitrary terminal commands a sandbox.
 
 The official HA plugin provides discovery and device-control tools. Its autonomous event platform stays disabled. The gateway also receives `HASS_URL` and `HASS_TOKEN` through the terminal credential override so it retains full REST/WebSocket administration, including operations the plugin restricts. The retained token belongs to the local-only HA administrator `Hermes` (`hermes`); its recorded expiry is 2027-11-02. Do not revoke it during this reset.
 
-Samwise may perform requested routine lights, media and ordinary comfort adjustments. Its identity requires specific confirmation for locks, alarms, doors/gates, camera/privacy changes, hazardous appliances and HA configuration/automation edits. These are behavioral rules, not reduced token permissions.
+Samwise may perform requested routine lights, media and ordinary comfort adjustments. Its policy requires specific confirmation for locks, alarms, doors/gates, camera/privacy changes, hazardous appliances and HA configuration/automation edits. These are behavioral rules, not reduced token permissions.
 
 The dashboard keeps native Authentik SSO as its sole login gate; its ingress is not LAN-filtered. The blueprint creates the instance group and owner membership, provisions the exact HTTPS callback, and removes the old `hermes` application/provider. Future family access requires an intentional update to the group membership in the blueprint and, separately, the Telegram allowlist.
 
@@ -168,7 +210,7 @@ A credential-free staging Pod verified plugin installation, managed identity, pu
 Before rollout:
 
 1. Merge through owner review, then wait for both `authentik` and `ai` to sync. Check that the blueprint applied, its proxy provider is attached to the embedded outpost, and the browser PVC is bound.
-2. Review the existing `/opt/data/SOUL.md` and add the **Browser** section from `instances/samwise/SOUL.md` without discarding personal edits. Updating the seed alone does not change an existing instance.
+2. Follow the existing-instance identity/policy migration above. Browser authorization now lives in `instances/samwise/POLICY.md`, under **Beyond the garden gate**; preserve personal identity edits and refresh continued sessions after migration.
 3. Run `hermes camofox status` in the gateway. It must report a reachable server and managed persistence. Ask for a public page and confirm browser tool calls in Telegram and the dashboard.
 4. Test the desktop and `/websockify`: unauthenticated LAN clients must redirect to Authentik, a group member must connect, a nonmember must be denied, and a non-LAN request must be rejected. Local manifest tests do not establish these live authorization results.
 5. Sign in through the desktop. Use a normal rollout restart to check that the login survives before relying on persistence. Do not test persistence with purchases, cart changes or home-device writes.
@@ -237,6 +279,20 @@ hack/render.sh kubernetes/apps/ai
 hack/render.sh kubernetes/apps/authentik
 hack/render.sh kubernetes/infrastructure/kube-prometheus-stack
 ```
+
+Pinned-runtime context checks, without credentials, network access or inference (run from the repository root with the pinned image already available):
+
+```bash
+docker run --rm --network none --user "$(id -u):$(id -g)" \
+  -e HERMES_CONTEXT_TESTS=1 -e HOME=/tmp -e HERMES_HOME=/tmp/hermes-context \
+  -v "$PWD:/repo:ro" --entrypoint /opt/hermes/.venv/bin/python \
+  docker.io/nousresearch/hermes-agent:v0.23.3@sha256:3e9fe4c6ef36490f43aa0d0d80f9df64e9c92a576eee3042f1a97c8813c05355 \
+  /repo/kubernetes/apps/ai/hermes/test_context_loading.py
+```
+
+These checks exercise all three profile contexts, native trader creation from the mounted-config layout, cron's workdir-dependent context switch, and an existing local trader session retaining the helper workspace after configuration refresh.
+They confirm POLICY is not implicitly loaded; they do not test whether a model follows its read instruction.
+The ordinary local suite skips these four tests unless `HERMES_CONTEXT_TESTS=1` is set.
 
 Post-activation checks, without device or shopping writes:
 

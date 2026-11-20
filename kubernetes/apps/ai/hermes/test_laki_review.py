@@ -17,13 +17,15 @@ class LakiReviewTests(unittest.TestCase):
         store.create_job.assert_called_once_with(
             name=NAME, prompt=PROMPT, schedule=SCHEDULE, timezone="Europe/Bratislava",
             deliver="telegram", paused=True, paused_reason="Awaiting provisioning verification",
+            workdir="/opt/data/workspace",
         )
 
     def test_matching_paused_job_is_unchanged(self):
         store = Mock()
         job = {"id": "test", "name": NAME, "prompt": PROMPT,
                "schedule": {"kind": "cron", "expr": SCHEDULE},
-               "timezone": "Europe/Bratislava", "deliver": "telegram", "state": "paused"}
+               "timezone": "Europe/Bratislava", "deliver": "telegram", "state": "paused",
+               "workdir": "/opt/data/workspace"}
         store.list_jobs.return_value = [job]
         self.assertEqual(provision(store, "Europe/Bratislava", PROMPT), job)
         store.create_job.assert_not_called()
@@ -35,8 +37,19 @@ class LakiReviewTests(unittest.TestCase):
         provision(store, "Europe/Bratislava", PROMPT)
         store.update_job.assert_called_once_with("test", {
             "prompt": PROMPT, "timezone": "Europe/Bratislava", "deliver": "telegram",
-            "schedule": SCHEDULE,
+            "schedule": SCHEDULE, "workdir": "/opt/data/workspace",
         })
+        store.create_job.assert_not_called()
+
+    def test_existing_job_without_workdir_gets_policy_workspace(self):
+        store = Mock()
+        store.list_jobs.return_value = [{
+            "id": "existing", "name": NAME, "prompt": PROMPT,
+            "schedule": {"kind": "cron", "expr": SCHEDULE},
+            "timezone": "Europe/Bratislava", "deliver": "telegram", "state": "paused",
+        }]
+        provision(store, "Europe/Bratislava", PROMPT)
+        store.update_job.assert_called_once_with("existing", {"workdir": "/opt/data/workspace"})
         store.create_job.assert_not_called()
 
     def test_duplicates_and_invalid_timezones_fail_before_mutation(self):

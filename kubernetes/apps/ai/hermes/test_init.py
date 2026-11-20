@@ -22,6 +22,8 @@ class InitTests(unittest.TestCase):
         self.config.mkdir()
         (self.config / "config.yaml").write_text("model: initial\n")
         (self.config / "SOUL.md").write_text("Initial Samwise identity\n")
+        (self.config / "AGENTS.md").write_text("Read the active profile policy before acting.\n")
+        (self.config / "POLICY.md").write_text("Confirm consequential actions.\n")
         self.run = Mock(side_effect=self.install_plugin)
 
     def install_plugin(self, *args, **kwargs):
@@ -72,6 +74,47 @@ class InitTests(unittest.TestCase):
         self.assertEqual(soul.read_text(), "Runtime edit\n")
         self.assertEqual(soul.stat().st_mtime_ns, before.st_mtime_ns)
         self.assertEqual((self.home / "config.yaml").read_text(), "model: updated\n")
+
+    def test_refreshes_operating_files_without_changing_runtime_identity(self):
+        self.initialize()
+        (self.home / "SOUL.md").write_text("Owner identity edit\n")
+        (self.config / "AGENTS.md").write_text("Updated working instructions\n")
+        (self.config / "POLICY.md").write_text("Updated operating policy\n")
+        self.initialize()
+        instructions = self.home / "workspace/AGENTS.md"
+        policy = self.home / "POLICY.md"
+        self.assertEqual(instructions.read_text(), "Updated working instructions\n")
+        self.assertEqual(policy.read_text(), "Updated operating policy\n")
+        self.assertEqual((self.home / "SOUL.md").read_text(), "Owner identity edit\n")
+        for path in (instructions, policy):
+            self.assertEqual(path.stat().st_mode & 0o777, 0o600)
+
+    def test_operating_files_exist_before_plugin_cli_runs(self):
+        def install_after_policy(*args, **kwargs):
+            self.assertEqual((self.home / "workspace/AGENTS.md").read_text(),
+                             "Read the active profile policy before acting.\n")
+            self.assertEqual((self.home / "POLICY.md").read_text(), "Confirm consequential actions.\n")
+            self.install_plugin(*args, **kwargs)
+
+        self.run.side_effect = install_after_policy
+        self.initialize()
+
+    def test_refuses_symlinked_operating_destinations(self):
+        for name in ("workspace", "workspace/AGENTS.md", "POLICY.md"):
+            with self.subTest(name=name), tempfile.TemporaryDirectory() as directory:
+                home = Path(directory) / "home"
+                home.mkdir()
+                outside = Path(directory) / "outside"
+                outside.mkdir()
+                sentinel = outside / "sentinel"
+                sentinel.write_text("Unrelated profile\n")
+                destination = home / name
+                destination.parent.mkdir(parents=True, exist_ok=True)
+                destination.symlink_to(outside if name == "workspace" else sentinel)
+                with self.assertRaisesRegex(RuntimeError, "explicit adoption"):
+                    hermes_init.sync_operating_files(home, self.config)
+                self.assertEqual(sentinel.read_text(), "Unrelated profile\n")
+                self.assertEqual(sorted(path.name for path in outside.iterdir()), ["sentinel"])
 
     def test_managed_env_survives_reload_inputs_and_preserves_runtime_settings(self):
         self.home.mkdir()

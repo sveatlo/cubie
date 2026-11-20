@@ -24,6 +24,8 @@ class ProfileTests(unittest.TestCase):
         self.config.mkdir()
         self.env.mkdir()
         (self.config / "SOUL.md").write_text("Trader seed\n")
+        (self.config / "AGENTS.md").write_text("Trader working instructions\n")
+        (self.config / "POLICY.md").write_text("Never place an order\n")
         (self.config / "config.yaml").write_text("model:\n  provider: test\n")
         self.env_values = {
             "TELEGRAM_BOT_TOKEN": "trader-token",
@@ -278,6 +280,21 @@ class ProfileTests(unittest.TestCase):
                     (target / "state.db").unlink()
                 target.rmdir()
                 self.assertFalse(Path(calls[0][1]["env"]["HERMES_HOME"]).exists())
+
+    def test_refreshes_only_trader_operating_files_and_preserves_identity(self):
+        run = self.run_native_create([])
+        target = self.reconcile(run)
+        (target / "SOUL.md").write_text("Owner trader identity\n")
+        (self.default / "POLICY.md").write_text("Helper policy\n")
+        (self.config / "POLICY.md").write_text("Updated trader policy\n")
+        (self.config / "AGENTS.md").write_text("Updated trader instructions\n")
+        self.reconcile(run)
+        self.assertEqual((target / "SOUL.md").read_text(), "Owner trader identity\n")
+        self.assertEqual((target / "POLICY.md").read_text(), "Updated trader policy\n")
+        self.assertEqual((target / "workspace/AGENTS.md").read_text(), "Updated trader instructions\n")
+        self.assertEqual((self.default / "POLICY.md").read_text(), "Helper policy\n")
+        for path in (target / "POLICY.md", target / "workspace/AGENTS.md"):
+            self.assertEqual(path.stat().st_mode & 0o777, 0o600)
 
     def test_config_failure_never_publishes_native_profile(self):
         (self.config / "config.yaml").unlink()

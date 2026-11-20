@@ -31,14 +31,14 @@ def trader_credentials_ready(trader_env, helper_env):
     return not (helper_token.is_file() and helper_token.read_text() == bot_values["TELEGRAM_BOT_TOKEN"])
 
 
-def _load_sync_managed_env():
+def _load_base_init():
     path = Path(__file__).with_name("init.py")
     if not path.is_file():
         path = Path(__file__).parents[2] / "base/init.py"
     spec = spec_from_file_location("laki_profile_base_init", path)
     module = module_from_spec(spec)
     spec.loader.exec_module(module)
-    return module.sync_managed_env
+    return module
 
 
 def _write_atomic(path, contents):
@@ -66,6 +66,8 @@ def _configure(target, config_dir, env_dir, helper_env, fresh=False):
         path = target / name
         if path.is_symlink() or (path.exists() and not path.is_file()):
             raise RuntimeError("Trader managed files require explicit adoption")
+    base_init = _load_base_init()
+    base_init.sync_operating_files(target, config_dir)
     with tempfile.TemporaryDirectory(prefix="laki-trader-env-") as directory:
         source = Path(directory)
         ready = trader_credentials_ready(env_dir, helper_env)
@@ -78,11 +80,7 @@ def _configure(target, config_dir, env_dir, helper_env, fresh=False):
                 destination = source / path.name
                 destination.touch(mode=0o600)
                 shutil.copyfile(path, destination)
-        _load_sync_managed_env()(target, source)
-    workspace = target / "workspace"
-    if workspace.is_symlink() or (workspace.exists() and not workspace.is_dir()):
-        raise RuntimeError("Trader workspace requires explicit adoption")
-    workspace.mkdir(exist_ok=True)
+        base_init.sync_managed_env(target, source)
     if fresh or not (target / "SOUL.md").exists():
         _write_atomic(target / "SOUL.md", (config_dir / "SOUL.md").read_text())
     _write_atomic(target / "config.yaml", (config_dir / "config.yaml").read_text())

@@ -149,7 +149,10 @@ class InstanceTests(unittest.TestCase):
 
     def test_generated_config_contains_only_household_runtime(self):
         cm = next(r for r in self.resources if r["kind"] == "ConfigMap")
-        self.assertEqual(set(cm["data"]), {"init.py", "smoke_test.py", "config.yaml", "SOUL.md"})
+        self.assertEqual(set(cm["data"]),
+                         {"init.py", "smoke_test.py", "config.yaml", "SOUL.md", "AGENTS.md", "POLICY.md"})
+        for filename in ("AGENTS.md", "POLICY.md"):
+            self.assertEqual(cm["data"][filename], (ROOT / "instances/samwise" / filename).read_text())
         self.assertIn("Samwise Gamgee", cm["data"]["SOUL.md"])
         self.assertEqual(cm["data"]["SOUL.md"], (ROOT / "instances/samwise/SOUL.md").read_text())
         for metadata in ("Rohlík", "sveatlo", "Sväťo", "OpenAI", "subscription", "homelab", "administrator access"):
