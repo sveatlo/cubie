@@ -32,9 +32,24 @@ def sync_managed_env(home, source):
     marker.chmod(0o600)
 
 
+def sync_operating_files(home, config):
+    workspace = home / "workspace"
+    if workspace.is_symlink() or (workspace.exists() and not workspace.is_dir()):
+        raise RuntimeError("Managed workspace requires explicit adoption")
+    destinations = {"AGENTS.md": workspace / "AGENTS.md", "POLICY.md": home / "POLICY.md"}
+    for destination in destinations.values():
+        if destination.is_symlink() or (destination.exists() and not destination.is_file()):
+            raise RuntimeError("Managed operating files require explicit adoption")
+    workspace.mkdir(exist_ok=True)
+    for name, destination in destinations.items():
+        destination.touch(mode=0o600, exist_ok=True)
+        destination.chmod(0o600)
+        shutil.copyfile(config / name, destination)
+
+
 def initialize(home, config, run=subprocess.run, managed_env=None):
     home.mkdir(parents=True, exist_ok=True)
-    (home / "workspace").mkdir(exist_ok=True)
+    sync_operating_files(home, config)
     if managed_env is not None:
         sync_managed_env(home, managed_env)
     soul = home / "SOUL.md"

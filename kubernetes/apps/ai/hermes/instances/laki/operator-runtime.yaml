@@ -58,6 +58,9 @@ spec:
             - name: trader-env
               mountPath: /trader-env
               readOnly: true
+            - name: trader-config
+              mountPath: /config/trader
+              readOnly: true
       containers:
         - name: gateway
           envFrom:
@@ -104,6 +107,18 @@ spec:
               mountPath: /var/run/secrets/kubernetes.io/serviceaccount
               readOnly: true
       volumes:
+        - name: trader-config
+          configMap:
+            name: hermes-laki-config
+            items:
+              - key: trader-config.yaml
+                path: config.yaml
+              - key: trader-SOUL.md
+                path: SOUL.md
+              - key: trader-AGENTS.md
+                path: AGENTS.md
+              - key: trader-POLICY.md
+                path: POLICY.md
         - name: managed-env
           projected:
             sources:

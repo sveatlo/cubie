@@ -32,6 +32,7 @@ class KrakenTests(unittest.TestCase):
 
     def test_trader_has_only_guarded_kraken_without_raw_exchange_env(self):
         config = yaml.safe_load((LAKI / "trader/config.yaml").read_text())
+        self.assertEqual(config["terminal"]["cwd"], "/opt/data/profiles/trader/workspace")
         self.assertEqual(set(config["mcp_servers"]), {"kraken"})
         kraken = config["mcp_servers"]["kraken"]
         self.assertEqual(kraken["url"], "http://hermes-laki-kraken-gate:8000/mcp")
@@ -69,6 +70,8 @@ class KrakenTests(unittest.TestCase):
             for path in (target, config, trader, helper):
                 path.mkdir()
             (config / "SOUL.md").write_text("Trader\n")
+            (config / "AGENTS.md").write_text("Read own policy.\n")
+            (config / "POLICY.md").write_text("Analysis only.\n")
             (config / "config.yaml").write_text("terminal:\n  cwd: /opt/data/profiles/trader/workspace\n")
             (target / ".env").write_text("TELEGRAM_BOT_TOKEN='stale'\nTELEGRAM_ALLOWED_USERS='123'\n")
             (target / ".managed-env-keys.json").write_text(
@@ -104,7 +107,9 @@ class KrakenTests(unittest.TestCase):
             (config / "profile-init.py").write_text((LAKI / "profile-init.py").read_text())
             (config / "init.py").write_text((ROOT / "base/init.py").read_text())
             mounted = load_script_from(config / "profile-init.py")
-            self.assertTrue(callable(mounted._load_sync_managed_env()))
+            initializer = mounted._load_base_init()
+            self.assertTrue(callable(initializer.sync_managed_env))
+            self.assertTrue(callable(initializer.sync_operating_files))
 
     def test_trader_uses_profile_owned_workspace(self):
         config = yaml.safe_load((LAKI / "trader/config.yaml").read_text())

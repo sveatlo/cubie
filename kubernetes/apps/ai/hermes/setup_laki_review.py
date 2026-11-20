@@ -18,9 +18,11 @@ def provision(store, timezone, prompt):
         return store.create_job(
             name=NAME, prompt=prompt, schedule=SCHEDULE, timezone=timezone,
             deliver="telegram", paused=True, paused_reason="Awaiting provisioning verification",
+            workdir="/opt/data/workspace",
         )
     job = matches[0]
-    expected = {"prompt": prompt, "timezone": timezone, "deliver": "telegram"}
+    expected = {"prompt": prompt, "timezone": timezone, "deliver": "telegram",
+                "workdir": "/opt/data/workspace"}
     changes = {key: value for key, value in expected.items() if job.get(key) != value}
     if job.get("schedule", {}).get("expr") != SCHEDULE:
         changes["schedule"] = SCHEDULE

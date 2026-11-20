@@ -15,10 +15,14 @@ configMapGenerator:
     files:
       - config.yaml
       - SOUL.md
+      - AGENTS.md
+      - POLICY.md
       - operator-init.py
       - profile-init.py
-      - trader/config.yaml=trader/config.yaml
-      - trader/SOUL.md=trader/SOUL.md
+      - trader-config.yaml=trader/config.yaml
+      - trader-SOUL.md=trader/SOUL.md
+      - trader-AGENTS.md=trader/AGENTS.md
+      - trader-POLICY.md=trader/POLICY.md
       - git-credential.py
       - kubeconfig=kubernetes-client.yaml
       - daily-review.md
