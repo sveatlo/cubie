@@ -1,0 +1,38 @@
+model:
+  provider: openai-codex
+  default: gpt-6.1-sol
+agent:
+  max_turns: 25
+  run_budget_seconds: 600
+terminal:
+  backend: local
+  cwd: /opt/data/workspace
+approvals:
+  mode: smart
+  unattended_mode: deny
+  single_query_mode: deny
+  cron_mode: deny
+gateway:
+  allow_all_users: false
+  unauthorized_dm_behavior: ignore
+plugins:
+  enabled:
+    - camofox
+browser:
+  camofox:
+    managed_persistence: true
+platform_toolsets:
+  telegram: &trader_tools
+    - terminal
+    - file
+    - camofox
+    - cronjob
+  cli: *trader_tools
+mcp_servers:
+  kraken:
+    url: http://127.0.0.1:8787/mcp
+    headers:
+      Authorization: "Bearer ${HERMES_LAKI_GATE_CLIENT_TOKEN}"
+    trust: full
+telegram:
+  require_mention: true

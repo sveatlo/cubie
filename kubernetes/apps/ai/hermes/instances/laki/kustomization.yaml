@@ -16,6 +16,9 @@ configMapGenerator:
       - config.yaml
       - SOUL.md
       - operator-init.py
+      - profile-init.py
+      - trader/config.yaml=trader/config.yaml
+      - trader/SOUL.md=trader/SOUL.md
       - git-credential.py
       - kubeconfig=kubernetes-client.yaml
       - daily-review.md

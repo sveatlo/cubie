@@ -10,13 +10,27 @@ import tempfile
 PROFILE_NAME = "trader"
 PROFILE_MARKER = ".laki-profile-init-v1"
 MARKER_CONTENT = "laki-trader-profile-init-v1\n"
-MANAGED_KEYS = {
+BOT_KEYS = {
     "TELEGRAM_BOT_TOKEN",
     "TELEGRAM_ALLOWED_USERS",
     "TELEGRAM_HOME_CHANNEL",
-    "HERMES_LAKI_GATE_CLIENT_TOKEN",
-    "HERMES_TIMEZONE",
 }
+MANAGED_KEYS = BOT_KEYS | {"HERMES_LAKI_GATE_CLIENT_TOKEN", "HERMES_TIMEZONE", "CAMOFOX_URL"}
+
+
+def trader_credentials_ready(trader_env, helper_env):
+    trader_values = {
+        path.name: path.read_text()
+        for path in Path(trader_env).iterdir()
+        if path.name in MANAGED_KEYS and path.is_file()
+    }
+    bot_values = {key: trader_values[key] for key in BOT_KEYS if trader_values.get(key, "").strip()}
+    if len(bot_values) == len(BOT_KEYS):
+        helper_token = Path(helper_env) / "TELEGRAM_BOT_TOKEN"
+        if helper_token.is_file() and helper_token.read_text() == bot_values["TELEGRAM_BOT_TOKEN"]:
+            raise RuntimeError("duplicate trader bot credential")
+        return True
+    return False
 
 
 def _load_sync_managed_env():
@@ -47,15 +61,18 @@ def _native_environment(home):
     return environment
 
 
-def _configure(target, config_dir, env_dir, fresh=False):
+def _configure(target, config_dir, env_dir, helper_env, fresh=False):
     for name in ("SOUL.md", "config.yaml", ".env", ".managed-env-keys.json", PROFILE_MARKER):
         path = target / name
         if path.is_symlink() or (path.exists() and not path.is_file()):
             raise RuntimeError("Trader managed files require explicit adoption")
     with tempfile.TemporaryDirectory(prefix="laki-trader-env-") as directory:
         source = Path(directory)
-        for path in env_dir.iterdir():
-            if path.name in MANAGED_KEYS and path.is_file():
+        ready = trader_credentials_ready(env_dir, helper_env)
+        if os.environ.get("CAMOFOX_URL"):
+            (source / "CAMOFOX_URL").write_text(os.environ["CAMOFOX_URL"])
+        for path in env_dir.iterdir() if env_dir.is_dir() else ():
+            if path.name in MANAGED_KEYS and path.is_file() and (path.name not in BOT_KEYS or ready):
                 destination = source / path.name
                 destination.touch(mode=0o600)
                 shutil.copyfile(path, destination)
@@ -77,10 +94,12 @@ def _publish(staged, target):
         raise OSError(error, os.strerror(error), str(target))
 
 
-def reconcile_profile(default_home: Path, config_dir: Path, env_dir: Path, run=subprocess.run) -> Path:
+def reconcile_profile(default_home: Path, config_dir: Path, env_dir: Path,
+                      run=subprocess.run, helper_env: Path | None = None) -> Path:
     default_home = Path(default_home)
     config_dir = Path(config_dir)
     env_dir = Path(env_dir)
+    helper_env = Path(helper_env) if helper_env is not None else Path("/nonexistent")
     profiles = default_home / "profiles"
     target = profiles / PROFILE_NAME
     if profiles.is_symlink():
@@ -93,7 +112,7 @@ def reconcile_profile(default_home: Path, config_dir: Path, env_dir: Path, run=s
         if (not target.is_dir() or marker.is_symlink() or not marker.is_file()
                 or marker.read_text() != MARKER_CONTENT):
             raise RuntimeError("Existing trader profile requires explicit adoption")
-        _configure(target, config_dir, env_dir)
+        _configure(target, config_dir, env_dir, helper_env)
         return target
 
     with tempfile.TemporaryDirectory(prefix=".trader-profile-init-", dir=default_home) as directory:
@@ -108,11 +127,12 @@ def reconcile_profile(default_home: Path, config_dir: Path, env_dir: Path, run=s
         staged = home / "profiles" / PROFILE_NAME
         if (home / "profiles").is_symlink() or staged.is_symlink() or not staged.is_dir():
             raise RuntimeError("Native profile creation did not publish a trader directory")
-        _configure(staged, config_dir, env_dir, fresh=True)
+        _configure(staged, config_dir, env_dir, helper_env, fresh=True)
         _publish(staged, target)
     return target
 
 
 if __name__ == "__main__":
     os.umask(0o077)
-    reconcile_profile(Path(os.environ["HERMES_HOME"]), Path("/config/trader"), Path("/trader-env"))
+    reconcile_profile(Path(os.environ["HERMES_HOME"]), Path("/config/trader"), Path("/trader-env"),
+                      helper_env=Path("/managed-env"))

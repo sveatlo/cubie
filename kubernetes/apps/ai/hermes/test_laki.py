@@ -98,19 +98,21 @@ class LakiTests(unittest.TestCase):
         self.assertEqual(self.gateway["ports"], [{"name": "dashboard", "containerPort": 9119}])
         self.assertNotIn("hermes-api", yaml.safe_dump(self.laki))
         self.assertEqual(self.config["plugins"]["enabled"], ["homeassistant", "camofox"])
-        self.assertEqual(set(self.config["mcp_servers"]), {"kraken"})
+        self.assertNotIn("mcp_servers", self.config)
         self.assertEqual(set(self.config["platform_toolsets"]), {"telegram", "cli"})
         self.assertFalse(self.config["platforms"]["homeassistant"]["enabled"])
         self.assertEqual(set(self.config["platforms"]), {"homeassistant"})
         self.assertEqual({c["name"] for c in self.pod["initContainers"]},
-                         {"browser-binary", "camofox", "configure", "operator-configure"})
+                         {"browser-binary", "camofox", "configure", "operator-configure", "profile-configure"})
         self.assertEqual([c["name"] for c in self.pod["containers"]], ["gateway"])
 
     def test_smart_approvals_and_owner_only_default(self):
         self.assertEqual(self.config["approvals"], {
             "mode": "smart", "unattended_mode": "deny", "single_query_mode": "deny", "cron_mode": "deny",
         })
-        self.assertEqual(self.config["gateway"], {"allow_all_users": False, "unauthorized_dm_behavior": "ignore"})
+        self.assertEqual(self.config["gateway"], {
+            "allow_all_users": False, "unauthorized_dm_behavior": "ignore", "multiplex_profiles": True,
+        })
         env = {e["name"]: e for e in self.gateway["env"]}
         self.assertEqual(env["GATEWAY_ALLOW_ALL_USERS"]["value"], "false")
         self.assertIn("cronjob", self.config["platform_toolsets"]["telegram"])
@@ -144,7 +146,6 @@ class LakiTests(unittest.TestCase):
             {"secret": {"name": "hermes-laki-credentials"}},
             {"secret": {"name": "hermes-laki-homeassistant"}},
             {"secret": {"name": "hermes-laki-operator"}},
-            {"secret": {"name": "hermes-laki-kraken", "optional": True}},
         ])
         for name in ("homeassistant", "operator"):
             self.assertIn({"prefix": "_HERMES_FORCE_", "secretRef": {"name": f"hermes-laki-{name}"}},
