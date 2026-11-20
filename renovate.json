@@ -32,7 +32,16 @@
             "versioningTemplate": "docker"
         }
     ],
+    "automerge": false,
+    "automergeType": "pr",
+    "platformAutomerge": false,
+    "ignoreTests": false,
     "packageRules": [
+        {
+            "description": "Automerge non-major updates only after successful status checks",
+            "matchUpdateTypes": ["minor", "patch", "digest"],
+            "automerge": true
+        },
         {
             "description": "Track Mealie MCP releases and same-version revision builds",
             "matchPackageNames": ["ghcr.io/djwmarcx/better-mealie-mcp"],
