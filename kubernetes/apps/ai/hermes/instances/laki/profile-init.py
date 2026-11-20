@@ -25,16 +25,16 @@ def trader_credentials_ready(trader_env, helper_env):
         if path.name in MANAGED_KEYS and path.is_file()
     }
     bot_values = {key: trader_values[key] for key in BOT_KEYS if trader_values.get(key, "").strip()}
-    if len(bot_values) == len(BOT_KEYS):
-        helper_token = Path(helper_env) / "TELEGRAM_BOT_TOKEN"
-        if helper_token.is_file() and helper_token.read_text() == bot_values["TELEGRAM_BOT_TOKEN"]:
-            raise RuntimeError("duplicate trader bot credential")
-        return True
-    return False
+    if len(bot_values) != len(BOT_KEYS):
+        return False
+    helper_token = Path(helper_env) / "TELEGRAM_BOT_TOKEN"
+    return not (helper_token.is_file() and helper_token.read_text() == bot_values["TELEGRAM_BOT_TOKEN"])
 
 
 def _load_sync_managed_env():
-    path = Path(__file__).parents[2] / "base/init.py"
+    path = Path(__file__).with_name("init.py")
+    if not path.is_file():
+        path = Path(__file__).parents[2] / "base/init.py"
     spec = spec_from_file_location("laki_profile_base_init", path)
     module = module_from_spec(spec)
     spec.loader.exec_module(module)
@@ -77,6 +77,10 @@ def _configure(target, config_dir, env_dir, helper_env, fresh=False):
                 destination.touch(mode=0o600)
                 shutil.copyfile(path, destination)
         _load_sync_managed_env()(target, source)
+    workspace = target / "workspace"
+    if workspace.is_symlink() or (workspace.exists() and not workspace.is_dir()):
+        raise RuntimeError("Trader workspace requires explicit adoption")
+    workspace.mkdir(exist_ok=True)
     if fresh or not (target / "SOUL.md").exists():
         _write_atomic(target / "SOUL.md", (config_dir / "SOUL.md").read_text())
     _write_atomic(target / "config.yaml", (config_dir / "config.yaml").read_text())

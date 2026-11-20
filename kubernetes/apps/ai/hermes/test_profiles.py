@@ -74,6 +74,8 @@ class ProfileTests(unittest.TestCase):
         target = self.reconcile(self.run_native_create(calls))
 
         self.assertEqual(target, self.default / "profiles/trader")
+        self.assertTrue((target / "workspace").is_dir())
+        self.assertFalse((self.default / "workspace").exists())
         self.assertEqual(calls[0][0], [
             "/opt/hermes/.venv/bin/hermes", "profile", "create", "trader",
             "--no-credentials",

@@ -6,7 +6,7 @@ agent:
   run_budget_seconds: 600
 terminal:
   backend: local
-  cwd: /opt/data/workspace
+  cwd: /opt/data/profiles/trader/workspace
 approvals:
   mode: smart
   unattended_mode: deny
@@ -30,7 +30,7 @@ platform_toolsets:
   cli: *trader_tools
 mcp_servers:
   kraken:
-    url: http://127.0.0.1:8787/mcp
+    url: http://hermes-laki-kraken-gate:8000/mcp
     headers:
       Authorization: "Bearer ${HERMES_LAKI_GATE_CLIENT_TOKEN}"
     trust: full
