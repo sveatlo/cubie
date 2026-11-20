@@ -3,11 +3,11 @@ deployment:
   replicas: 1
 
 service:
-  type: LoadBalancer
   annotations:
     # MetalLB annotation: pin to specific IP if desired, or remove to auto-assign.
     metallb.universe.tf/loadBalancerIPs: "10.69.11.42"
   spec:
+    type: LoadBalancer
     externalTrafficPolicy: Local
 
 ports:
@@ -55,11 +55,11 @@ providers:
     allowCrossNamespace: true
     allowExternalNameServices: true
 
-logs:
-  general:
-    level: INFO
-  access:
-    enabled: true
+log:
+  level: INFO
+
+accessLog:
+  enabled: true
 
 metrics:
   prometheus:
