@@ -1,0 +1,110 @@
+---
+name: validate
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: validate-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  discover:
+    name: Discover Helm charts
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      charts: ${{ steps.find.outputs.charts }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Find kustomizations with helmCharts
+        id: find
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          charts = sorted({
+              str(path.parent)
+              for path in Path("kubernetes").rglob("kustomization.y*ml")
+              if "helmCharts:" in path.read_text()
+          })
+          if not charts:
+              raise SystemExit("No Helm charts discovered")
+          with open(os.environ["GITHUB_OUTPUT"], "a") as output:
+              output.write(f"charts={json.dumps(charts)}\n")
+          PY
+
+  helm-schema:
+    name: Helm schema validation (${{ matrix.chart }})
+    needs: discover
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        chart: ${{ fromJson(needs.discover.outputs.charts) }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - uses: azure/setup-helm@v5
+        with:
+          version: v3.19.0
+
+      - name: Install kustomize
+        env:
+          KUSTOMIZE_VERSION: "5.8.1"
+        run: |
+          curl --fail --silent --show-error --location --retry 3 \
+            "https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2Fv${KUSTOMIZE_VERSION}/kustomize_v${KUSTOMIZE_VERSION}_linux_amd64.tar.gz" \
+            | tar -xz -C "$RUNNER_TEMP" kustomize
+          echo "$RUNNER_TEMP" >> "$GITHUB_PATH"
+
+      # Only render: no cluster credentials, secrets or real DNS are needed.
+      # Reserved domains keep this usable on forks and Renovate PRs too.
+      - name: Substitute validation domains
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          for path in Path("kubernetes").rglob("*"):
+              if path.suffix not in {".yaml", ".yml"}:
+                  continue
+              text = path.read_text()
+              for index in range(5):
+                  text = text.replace("${DOMAIN_" + str(index) + "}",
+                                      f"domain-{index}.example.com")
+              path.write_text(text)
+          PY
+
+      - name: Build ${{ matrix.chart }}
+        env:
+          CHART: ${{ matrix.chart }}
+        # Render output is not needed in the logs; Helm/Kustomize errors remain visible.
+        run: kustomize build --enable-helm "$CHART" > /dev/null
+
+  validation:
+    name: Validation
+    if: ${{ always() }}
+    needs: [discover, helm-schema]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Require all validation jobs to pass
+        env:
+          DISCOVER_RESULT: ${{ needs.discover.result }}
+          HELM_RESULT: ${{ needs.helm-schema.result }}
+        run: |
+          test "$DISCOVER_RESULT" = success
+          test "$HELM_RESULT" = success
