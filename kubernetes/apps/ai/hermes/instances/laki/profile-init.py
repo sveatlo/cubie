@@ -1,4 +1,5 @@
-import json
+import ctypes
+from importlib.util import module_from_spec, spec_from_file_location
 import os
 from pathlib import Path
 import shutil
@@ -8,7 +9,7 @@ import tempfile
 
 PROFILE_NAME = "trader"
 PROFILE_MARKER = ".laki-profile-init-v1"
-RECOVERY_MARKER = ".trader-profile-init-recovery"
+MARKER_CONTENT = "laki-trader-profile-init-v1\n"
 MANAGED_KEYS = {
     "TELEGRAM_BOT_TOKEN",
     "TELEGRAM_ALLOWED_USERS",
@@ -20,60 +21,60 @@ MANAGED_KEYS = {
 
 def _load_sync_managed_env():
     path = Path(__file__).parents[2] / "base/init.py"
-    namespace = {"__name__": "profile_init.base_init"}
-    exec(compile(path.read_bytes(), str(path), "exec"), namespace)
-    return namespace["sync_managed_env"]
+    spec = spec_from_file_location("laki_profile_base_init", path)
+    module = module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module.sync_managed_env
 
 
 def _write_atomic(path, contents):
-    path.parent.mkdir(parents=True, exist_ok=True)
     fd, temporary = tempfile.mkstemp(prefix=f".{path.name}.", dir=path.parent)
     try:
         with os.fdopen(fd, "w") as stream:
             stream.write(contents)
-        os.chmod(temporary, 0o600)
         os.replace(temporary, path)
-    except BaseException:
-        try:
-            os.unlink(temporary)
-        except FileNotFoundError:
-            pass
-        raise
+    finally:
+        Path(temporary).unlink(missing_ok=True)
 
 
-def _native_environment(default_home):
+def _native_environment(home):
     environment = {
         key: os.environ[key]
         for key in ("PATH", "LANG", "LC_ALL")
         if key in os.environ
     }
-    environment.update({"HOME": str(default_home), "HERMES_HOME": str(default_home)})
+    environment.update({"HOME": str(home), "HERMES_HOME": str(home)})
     return environment
 
 
-def _prepare_managed_source(source):
-    temporary = tempfile.TemporaryDirectory(prefix="laki-trader-env-")
-    directory = Path(temporary.name)
-    for path in source.iterdir():
-        if path.is_file() and path.name in MANAGED_KEYS:
-            shutil.copyfile(path, directory / path.name)
-    return temporary, directory
+def _configure(target, config_dir, env_dir, fresh=False):
+    for name in ("SOUL.md", "config.yaml", ".env", ".managed-env-keys.json", PROFILE_MARKER):
+        path = target / name
+        if path.is_symlink() or (path.exists() and not path.is_file()):
+            raise RuntimeError("Trader managed files require explicit adoption")
+    with tempfile.TemporaryDirectory(prefix="laki-trader-env-") as directory:
+        source = Path(directory)
+        for path in env_dir.iterdir():
+            if path.name in MANAGED_KEYS and path.is_file():
+                destination = source / path.name
+                destination.touch(mode=0o600)
+                shutil.copyfile(path, destination)
+        _load_sync_managed_env()(target, source)
+    if fresh or not (target / "SOUL.md").exists():
+        _write_atomic(target / "SOUL.md", (config_dir / "SOUL.md").read_text())
+    _write_atomic(target / "config.yaml", (config_dir / "config.yaml").read_text())
+    _write_atomic(target / PROFILE_MARKER, MARKER_CONTENT)
 
 
-def _quarantine_failed_profile(target, profiles, recovery):
-    if not target.exists():
-        return
-    if target.is_dir() and not any(target.iterdir()):
-        target.rmdir()
-        return
-    if not recovery.exists():
-        raise RuntimeError("Existing trader profile requires explicit adoption")
-    quarantine = profiles / f".trader-profile-recovery-{os.getpid()}"
-    suffix = 0
-    while quarantine.exists():
-        suffix += 1
-        quarantine = profiles / f".trader-profile-recovery-{os.getpid()}-{suffix}"
-    target.replace(quarantine)
+def _publish(staged, target):
+    # Linux RENAME_NOREPLACE keeps a concurrently created owner directory intact.
+    libc = ctypes.CDLL(None, use_errno=True)
+    rename = libc.renameat2
+    rename.argtypes = [ctypes.c_int, ctypes.c_char_p, ctypes.c_int, ctypes.c_char_p, ctypes.c_uint]
+    rename.restype = ctypes.c_int
+    if rename(-100, os.fsencode(staged), -100, os.fsencode(target), 1) != 0:
+        error = ctypes.get_errno()
+        raise OSError(error, os.strerror(error), str(target))
 
 
 def reconcile_profile(default_home: Path, config_dir: Path, env_dir: Path, run=subprocess.run) -> Path:
@@ -82,56 +83,36 @@ def reconcile_profile(default_home: Path, config_dir: Path, env_dir: Path, run=s
     env_dir = Path(env_dir)
     profiles = default_home / "profiles"
     target = profiles / PROFILE_NAME
-    marker = target / PROFILE_MARKER
-    recovery = default_home / RECOVERY_MARKER
+    if profiles.is_symlink():
+        raise RuntimeError("Profiles directory requires explicit adoption")
     profiles.mkdir(parents=True, exist_ok=True)
+    if target.is_symlink():
+        raise RuntimeError("Existing trader profile requires explicit adoption")
+    if target.exists():
+        marker = target / PROFILE_MARKER
+        if (not target.is_dir() or marker.is_symlink() or not marker.is_file()
+                or marker.read_text() != MARKER_CONTENT):
+            raise RuntimeError("Existing trader profile requires explicit adoption")
+        _configure(target, config_dir, env_dir)
+        return target
 
-    if target.exists() and not marker.exists():
-        _quarantine_failed_profile(target, profiles, recovery)
-
-    if not target.exists():
-        _write_atomic(recovery, json.dumps({"profile": PROFILE_NAME, "version": 1}) + "\n")
+    with tempfile.TemporaryDirectory(prefix=".trader-profile-init-", dir=default_home) as directory:
+        home = Path(directory)
         run(
-            [
-                "/opt/hermes/.venv/bin/hermes",
-                "profile",
-                "create",
-                PROFILE_NAME,
-                "--no-credentials",
-            ],
+            ["/opt/hermes/.venv/bin/hermes", "profile", "create", PROFILE_NAME, "--no-credentials"],
             check=True,
-            env=_native_environment(default_home),
+            env=_native_environment(home),
             stdin=subprocess.DEVNULL,
             timeout=300,
         )
-
-    if not target.is_dir():
-        raise RuntimeError("Native profile creation did not publish a trader directory")
-
-    sync_managed_env = _load_sync_managed_env()
-    managed_source, filtered_source = _prepare_managed_source(env_dir)
-    try:
-        sync_managed_env(target, filtered_source)
-    finally:
-        managed_source.cleanup()
-
-    soul = target / "SOUL.md"
-    if not soul.exists():
-        temporary = target / ".SOUL.md.profile-init"
-        shutil.copyfile(config_dir / "SOUL.md", temporary)
-        temporary.chmod(0o600)
-        temporary.replace(soul)
-
-    _write_atomic(target / "config.yaml", (config_dir / "config.yaml").read_text())
-    _write_atomic(marker, "laki-trader-profile-init-v1\n")
-    recovery.unlink(missing_ok=True)
+        staged = home / "profiles" / PROFILE_NAME
+        if (home / "profiles").is_symlink() or staged.is_symlink() or not staged.is_dir():
+            raise RuntimeError("Native profile creation did not publish a trader directory")
+        _configure(staged, config_dir, env_dir, fresh=True)
+        _publish(staged, target)
     return target
 
 
 if __name__ == "__main__":
     os.umask(0o077)
-    reconcile_profile(
-        Path(os.environ["HERMES_HOME"]),
-        Path("/config/trader"),
-        Path("/trader-env"),
-    )
+    reconcile_profile(Path(os.environ["HERMES_HOME"]), Path("/config/trader"), Path("/trader-env"))
