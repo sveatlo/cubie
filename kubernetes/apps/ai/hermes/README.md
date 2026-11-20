@@ -1,6 +1,6 @@
 # Hermes household instances
 
-Samwise is the household instance; Laki is Sväťo's personal assistant and Cubie operator. Laki starts stopped until its independent credentials and sign-ins are ready. The shared `base/` supplies the pinned Hermes runtime, Camofox sidecar, dashboard/browser/API Services, separate runtime/browser PVCs and initialization. Each directory under `instances/` supplies identity, configuration, hostname, resource-name patches, selectors and Secret references.
+Samwise is the household instance; Laki is Sväťo's personal assistant and Cubie operator. Laki runs with one replica and independent credentials and sign-ins. The shared `base/` supplies the pinned Hermes runtime, Camofox sidecar, dashboard/browser/API Services, separate runtime/browser PVCs and initialization. Each directory under `instances/` supplies identity, configuration, hostname, resource-name patches, selectors and Secret references.
 
 | Setting | Samwise |
 | --- | --- |

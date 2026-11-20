@@ -51,6 +51,9 @@ spec:
             - prefix: _HERMES_FORCE_
               secretRef:
                 name: hermes-laki-operator
+            - secretRef:
+                name: hermes-laki-kraken
+                optional: true
           env:
             - name: API_SERVER_ENABLED
               value: "false"
@@ -91,6 +94,9 @@ spec:
                   name: hermes-laki-homeassistant
               - secret:
                   name: hermes-laki-operator
+              - secret:
+                  name: hermes-laki-kraken
+                  optional: true
         - name: talos
           secret:
             secretName: hermes-laki-talos

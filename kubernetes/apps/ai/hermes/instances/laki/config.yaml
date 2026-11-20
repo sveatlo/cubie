@@ -33,6 +33,21 @@ platform_toolsets:
     - camofox
     - cronjob
   cli: *personal_tools
+mcp_servers:
+  kraken:
+    command: /opt/data/tools/kraken-mcp
+    args:
+      - -s
+      - market,account,trade,paper,workspace,futures,futures-paper,funding,earn,auth,subaccount
+    trust: untrusted
+    elicitation:
+      enabled: true
+      timeout: 300
+    env:
+      KRAKEN_API_KEY: "${KRAKEN_API_KEY}"
+      KRAKEN_API_SECRET: "${KRAKEN_API_SECRET}"
+      KRAKEN_FUTURES_API_KEY: "${KRAKEN_FUTURES_API_KEY}"
+      KRAKEN_FUTURES_API_SECRET: "${KRAKEN_FUTURES_API_SECRET}"
 telegram:
   require_mention: true
 dashboard:

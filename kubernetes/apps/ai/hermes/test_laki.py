@@ -98,7 +98,7 @@ class LakiTests(unittest.TestCase):
         self.assertEqual(self.gateway["ports"], [{"name": "dashboard", "containerPort": 9119}])
         self.assertNotIn("hermes-api", yaml.safe_dump(self.laki))
         self.assertEqual(self.config["plugins"]["enabled"], ["homeassistant", "camofox"])
-        self.assertNotIn("mcp_servers", self.config)
+        self.assertEqual(set(self.config["mcp_servers"]), {"kraken"})
         self.assertEqual(set(self.config["platform_toolsets"]), {"telegram", "cli"})
         self.assertFalse(self.config["platforms"]["homeassistant"]["enabled"])
         self.assertEqual(set(self.config["platforms"]), {"homeassistant"})
@@ -144,6 +144,7 @@ class LakiTests(unittest.TestCase):
             {"secret": {"name": "hermes-laki-credentials"}},
             {"secret": {"name": "hermes-laki-homeassistant"}},
             {"secret": {"name": "hermes-laki-operator"}},
+            {"secret": {"name": "hermes-laki-kraken", "optional": True}},
         ])
         for name in ("homeassistant", "operator"):
             self.assertIn({"prefix": "_HERMES_FORCE_", "secretRef": {"name": f"hermes-laki-{name}"}},
