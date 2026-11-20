@@ -1,5 +1,7 @@
 from importlib.util import module_from_spec, spec_from_file_location
 from pathlib import Path
+from contextlib import redirect_stderr, redirect_stdout
+import io
 import json
 import tempfile
 import unittest
@@ -151,6 +153,54 @@ class ProfileTests(unittest.TestCase):
         self.assertNotIn("OLD_MANAGED", contents)
         self.assertNotIn("HERMES_TIMEZONE", contents)
         self.assertIn("TELEGRAM_BOT_TOKEN='rotated-token'", contents)
+
+    def test_invalid_bot_inputs_report_inactive_through_full_reconciliation(self):
+        helper_env = self.root / "helper-env"
+        helper_env.mkdir()
+        (helper_env / "TELEGRAM_BOT_TOKEN").write_text("helper-bot-secret")
+        (self.default / "workspace").mkdir()
+        (self.default / "workspace/owner.txt").write_bytes(b"helper workspace")
+        (self.default / "SOUL.md").write_bytes(b"helper identity")
+        helper_files = {
+            path.relative_to(self.default): path.read_bytes()
+            for path in self.default.rglob("*") if path.is_file()
+        }
+        calls = []
+        native = self.run_native_create(calls)
+        for scenario in ("missing", "partial", "duplicate"):
+            with self.subTest(scenario=scenario):
+                for key, value in self.env_values.items():
+                    (self.env / key).write_text(value)
+                target = profile_init.reconcile_profile(
+                    self.default, self.config, self.env, native, helper_env=helper_env,
+                )
+                (target / "SOUL.md").write_bytes(b"custom trader identity")
+                (target / "workspace/owner.txt").write_bytes(b"trader workspace")
+                (target / "state.db").write_bytes(b"trader state")
+                for key in profile_init.BOT_KEYS:
+                    if scenario == "missing" or (scenario == "partial" and key == "TELEGRAM_HOME_CHANNEL"):
+                        (self.env / key).unlink()
+                if scenario == "duplicate":
+                    (self.env / "TELEGRAM_BOT_TOKEN").write_text("helper-bot-secret")
+                output = io.StringIO()
+                with redirect_stdout(output), redirect_stderr(output):
+                    result = profile_init.reconcile_profile(
+                        self.default, self.config, self.env, native, helper_env=helper_env,
+                    )
+                self.assertEqual(result, target)
+                self.assertEqual(len(calls), 1)
+                self.assertIn("Trader inactive", output.getvalue())
+                for value in (*self.env_values.values(), "helper-bot-secret"):
+                    self.assertNotIn(value, output.getvalue())
+                contents = (target / ".env").read_text()
+                for key in profile_init.BOT_KEYS:
+                    self.assertNotIn(key, contents)
+                self.assertEqual((target / "SOUL.md").read_bytes(), b"custom trader identity")
+                self.assertEqual((target / "workspace/owner.txt").read_bytes(), b"trader workspace")
+                self.assertEqual((target / "state.db").read_bytes(), b"trader state")
+                for name, contents in helper_files.items():
+                    self.assertEqual((self.default / name).read_bytes(), contents)
+                self.assertEqual((helper_env / "TELEGRAM_BOT_TOKEN").read_text(), "helper-bot-secret")
 
     def test_unknown_existing_profile_refused(self):
         target = self.default / "profiles/trader"

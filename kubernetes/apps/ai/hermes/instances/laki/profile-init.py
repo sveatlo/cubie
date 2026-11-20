@@ -69,6 +69,8 @@ def _configure(target, config_dir, env_dir, helper_env, fresh=False):
     with tempfile.TemporaryDirectory(prefix="laki-trader-env-") as directory:
         source = Path(directory)
         ready = trader_credentials_ready(env_dir, helper_env)
+        if not ready:
+            print("Trader inactive: bot credentials missing, incomplete or duplicated.")
         if os.environ.get("CAMOFOX_URL"):
             (source / "CAMOFOX_URL").write_text(os.environ["CAMOFOX_URL"])
         for path in env_dir.iterdir() if env_dir.is_dir() else ():
