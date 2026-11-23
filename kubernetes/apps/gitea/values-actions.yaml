@@ -62,9 +62,10 @@ statefulset:
         capacity: 2
         timeout: 1h
         labels:
-          - ubuntu-latest:docker://catthehacker/ubuntu:act-22.04-20261115
-          - ubuntu-22.04:docker://catthehacker/ubuntu:act-22.04-20261115
-          - ubuntu-24.04:docker://catthehacker/ubuntu:act-24.04-20261115
+          # Official Ubuntu images are minimal; jobs must install their tools.
+          - ubuntu-latest:docker://ubuntu:22.04
+          - ubuntu-22.04:docker://ubuntu:22.04
+          - ubuntu-24.04:docker://ubuntu:24.04
 
   dind:
     rootless: true
