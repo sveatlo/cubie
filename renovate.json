@@ -59,11 +59,6 @@
             "ignoreUnstable": false
         },
         {
-            "description": "Track dated CI images without changing the Ubuntu release",
-            "matchPackageNames": ["catthehacker/ubuntu"],
-            "versioning": "regex:^(?<compatibility>act-\\d+\\.\\d+)-(?<major>\\d{8})$"
-        },
-        {
             "description": "PostgreSQL major upgrades require a database migration",
             "matchPackageNames": ["ghcr.io/cloudnative-pg/postgresql"],
             "allowedVersions": "<18"
