@@ -1,6 +1,6 @@
 model:
-  provider: openai-codex
-  default: gpt-6.1-sol
+  provider: anthropic
+  default: claude-sonnet-5-5
 agent:
   max_turns: 25
   run_budget_seconds: 600
